@@ -1,4 +1,4 @@
-# Copyright 2004-2020 Davide Alberani <da@erlug.linux.it>
+# Copyright 2004-2022 Davide Alberani <da@erlug.linux.it>
 #           2008-2018 H. Turgut Uyar <uyar@tekir.org>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -45,7 +45,7 @@ _reRoles = re.compile(r'(<li>.*? \.\.\.\. )(.*?)(</li>|<br>)', re.I | re.M | re.
 
 
 class DOMHTMLMaindetailsParser(DOMParserBase):
-    """Parser for the "categorized" (maindetails) page of a given person.
+    """Parser for the "maindetails" page of a given person.
     The page should be provided as a string, as taken from
     the www.imdb.com server.  The final result will be a
     dictionary, with a key for every relevant section.
@@ -83,19 +83,19 @@ class DOMHTMLMaindetailsParser(DOMParserBase):
     _film_rules = [
         Rule(
             key='link',
-            extractor=Path('./b/a[1]/@href')
+            extractor=Path('.//a[@class="ipc-metadata-list-summary-item__t"]/@href')
         ),
         Rule(
             key='title',
-            extractor=Path('./b/a[1]/text()')
+            extractor=Path('.//a[@class="ipc-metadata-list-summary-item__t"]/text()')
         ),
         Rule(
             key='notes',
-            extractor=Path('./b/following-sibling::text()')
+            extractor=Path('.//div[@class="ipc-metadata-list-summary-item__c"]//ul[contains(@class, "ipc-metadata-list-summary-item__stl")]//label/text()')
         ),
         Rule(
             key='year',
-            extractor=Path('./span[@class="year_column"]/text()')
+            extractor=Path('.//div[@class="ipc-metadata-list-summary-item__cc"]//label[@class="ipc-metadata-list-summary-item__li"]/text()')
         ),
         Rule(
             key='status',
@@ -103,11 +103,7 @@ class DOMHTMLMaindetailsParser(DOMParserBase):
         ),
         Rule(
             key='rolesNoChar',
-            extractor=Path('.//br/following-sibling::text()')
-        ),
-        Rule(
-            key='chrRoles',
-            extractor=Path('./a[@imdbpyname]/@imdbpyname')
+            extractor=Path('.//div[@class="ipc-metadata-list-summary-item__c"]//ul[contains(@class, "ipc-metadata-list-summary-item__tl")]//label/text()')
         )
     ]
 
@@ -115,13 +111,9 @@ class DOMHTMLMaindetailsParser(DOMParserBase):
         Rule(
             key='name',
             extractor=Path(
-                '//h1[@class="header"]//text()',
+                '//h1[@data-testid="hero__pageTitle"]//text()',
                 transform=lambda x: analyze_name(x)
             )
-        ),
-        Rule(
-            key='name_index',
-            extractor=Path('//h1[@class="header"]/span[1]/text()')
         ),
         Rule(
             key='birth info',
@@ -139,7 +131,7 @@ class DOMHTMLMaindetailsParser(DOMParserBase):
         ),
         Rule(
             key='headshot',
-            extractor=Path('//td[@id="img_primary"]//div[@class="image"]/a/img/@src')
+            extractor=Path('(//section[contains(@class, "ipc-page-section")])[1]//div[contains(@class, "ipc-poster")]/img[@class="ipc-image"]/@src')
         ),
         Rule(
             key='akas',
@@ -151,22 +143,21 @@ class DOMHTMLMaindetailsParser(DOMParserBase):
         Rule(
             key='filmography',
             extractor=Rules(
-                foreach='//div[starts-with(@id, "filmo-head-")]',
+                foreach='//div[contains(@class, "filmo-section-")]',
                 rules=[
                     Rule(
                         key=Path(
-                            './a[@name]/text()',
+                            './/h3/text()',
                             transform=lambda x: x.lower().replace(': ', ' ')
                         ),
                         extractor=Rules(
-                            foreach='./following-sibling::div[1]/div[starts-with(@class, "filmo-row")]',
+                            foreach='./following-sibling::div[1]//li[contains(@class, "ipc-metadata-list-summary-item")]',
                             rules=_film_rules,
                             transform=lambda x: build_movie(
                                 x.get('title') or '',
                                 year=x.get('year'),
                                 movieID=analyze_imdbid(x.get('link') or ''),
                                 rolesNoChar=(x.get('rolesNoChar') or '').strip(),
-                                chrRoles=(x.get('chrRoles') or '').strip(),
                                 additionalNotes=x.get('notes'),
                                 status=x.get('status') or None
                             )
@@ -199,8 +190,8 @@ class DOMHTMLMaindetailsParser(DOMParserBase):
         ),
         Rule(
             key='imdbID',
-            extractor=Path('//meta[@property="pageId"]/@content',
-                           transform=lambda x: (x or '').replace('nm', ''))
+            extractor=Path('//meta[@property="og:url"]/@content',
+                           transform=analyze_imdbid)
         )
     ]
 
@@ -224,11 +215,6 @@ class DOMHTMLMaindetailsParser(DOMParserBase):
         for what in 'birth date', 'death date':
             if what in data and not data[what]:
                 del data[what]
-        name_index = (data.get('name_index') or '').strip()
-        if name_index:
-            if self._name_imdb_index.match(name_index):
-                data['imdbIndex'] = name_index[1:-1]
-            del data['name_index']
         # XXX: the code below is for backwards compatibility
         # probably could be removed
         for key in list(data.keys()):
