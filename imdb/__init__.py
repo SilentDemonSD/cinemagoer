@@ -78,8 +78,8 @@ imdbURL_keyword_main = imdbURL_base + 'search/keyword/?keywords=%s'
 imdbURL_top250 = imdbURL_base + 'chart/top'
 # http://www.imdb.com/chart/bottom
 imdbURL_bottom100 = imdbURL_base + 'chart/bottom'
-# http://www.imdb.com/find?%s
-imdbURL_find = imdbURL_base + 'find?%s'
+# http://www.imdb.com/find/?%s
+imdbURL_find = imdbURL_base + 'find/?%s'
 # http://www.imdb.com/list/
 imdbURL_list_base = imdbURL_base + 'list/'
 
@@ -311,8 +311,8 @@ class IMDbBase:
         imdbURL_topindian250 = imdbURL_base + 'india/top-rated-indian-movies'
         # http://www.imdb.com/chart/boxoffice/
         imdbURL_boxoffice = imdbURL_base + 'chart/boxoffice/'
-        # http://www.imdb.com/find?%s
-        imdbURL_find = imdbURL_base + 'find?%s'
+        # http://www.imdb.com/find/?%s
+        imdbURL_find = imdbURL_base + 'find/?%s'
         # http://www.imdb.com/search/title?%s
         imdbURL_search_movie_advanced = imdbURL_base + 'search/title/?%s'
         # http://www.imdb.com/list/
@@ -452,7 +452,7 @@ class IMDbBase:
             res = self._search_episode(title, results)
         return [Movie.Movie(movieID=self._get_real_movieID(mi),
                 data=md, modFunct=self._defModFunct,
-                accessSystem=self.accessSystem) for mi, md in res][:results]
+                accessSystem=self.accessSystem) for mi, md in res if mi and md][:results]
 
     def _get_movie_list(self, list_, results):
         """Return a list of tuples (movieID, {movieData})"""
@@ -465,7 +465,7 @@ class IMDbBase:
         res = self._get_movie_list(list_, results)
         return [Movie.Movie(movieID=self._get_real_movieID(mi),
                 data=md, modFunct=self._defModFunct,
-                accessSystem=self.accessSystem) for mi, md in res][:results]
+                accessSystem=self.accessSystem) for mi, md in res if mi and md][:results]
 
     def _search_movie_advanced(self, title=None, adult=None, results=None, sort=None, sort_dir=None):
         """Return a list of tuples (movieID, {movieData})"""
@@ -485,7 +485,7 @@ class IMDbBase:
         res = self._search_movie_advanced(title=title, adult=adult, results=results, sort=sort, sort_dir=sort_dir)
         return [Movie.Movie(movieID=self._get_real_movieID(mi),
                 data=md, modFunct=self._defModFunct,
-                accessSystem=self.accessSystem) for mi, md in res][:results]
+                accessSystem=self.accessSystem) for mi, md in res if mi and md][:results]
 
     def _search_episode(self, title, results):
         """Return a list of tuples (movieID, {movieData})"""
@@ -538,7 +538,7 @@ class IMDbBase:
         res = self._search_person(name, results)
         return [Person.Person(personID=self._get_real_personID(pi),
                 data=pd, modFunct=self._defModFunct,
-                accessSystem=self.accessSystem) for pi, pd in res][:results]
+                accessSystem=self.accessSystem) for pi, pd in res if pi and pd][:results]
 
     def get_character(self, characterID, info=Character.Character.default_info,
                       modFunct=None):
@@ -581,7 +581,7 @@ class IMDbBase:
         res = self._search_character(name, results)
         return [Character.Character(characterID=self._get_real_characterID(pi),
                 data=pd, modFunct=self._defModFunct,
-                accessSystem=self.accessSystem) for pi, pd in res][:results]
+                accessSystem=self.accessSystem) for pi, pd in res if pi and pd][:results]
 
     def get_company(self, companyID, info=Company.Company.default_info,
                     modFunct=None):
@@ -623,7 +623,7 @@ class IMDbBase:
         res = self._search_company(name, results)
         return [Company.Company(companyID=self._get_real_companyID(pi),
                 data=pd, modFunct=self._defModFunct,
-                accessSystem=self.accessSystem) for pi, pd in res][:results]
+                accessSystem=self.accessSystem) for pi, pd in res if pi and pd][:results]
 
     def _search_keyword(self, keyword, results):
         """Return a list of 'keyword' strings."""

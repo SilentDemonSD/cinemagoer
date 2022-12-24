@@ -1,5 +1,12 @@
 * What's new in the next release
 
+  [http]
+
+  - #419: more fixes for movie searches
+  - #426: support 308 Permanent Redirect HTTP code
+  - better handling of locales
+  - fixes for python2.7
+
 
 * What's new in release 2022.11.04 (John Wick)
 

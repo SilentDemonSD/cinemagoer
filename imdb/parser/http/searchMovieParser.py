@@ -32,11 +32,12 @@ from imdb.utils import analyze_title, re_m_kind
 from .piculet import Path, Rule, Rules, reducers
 from .utils import DOMParserBase, analyze_imdbid
 
+
 def process_title(tdict):
     """Process parsed data and build a tuple that
     can be used to create a list of results."""
     imdbid = analyze_imdbid(tdict.get('link'))
-    title = tdict.get('title', '')
+    title = tdict.get('title', '').strip()
     kind = (tdict.get('kind') or '').strip()
     if not re_m_kind.match('(%s)' % kind):
         kind = ''
@@ -45,7 +46,10 @@ def process_title(tdict):
         title += ' (%s)' % year
     if kind:
         title += ' (%s)' % kind
-    analized_title = analyze_title(title)
+    if title:
+        analized_title = analyze_title(title)
+    else:
+        analized_title = {}
     akas = tdict.get('akas')
     cover = tdict.get('cover url')
     return imdbid, analized_title, akas, cover
@@ -62,7 +66,8 @@ class DOMHTMLSearchMovieParser(DOMParserBase):
                 rules=[
                     Rule(
                         key='link',
-                        extractor=Path('.//a[@class="ipc-metadata-list-summary-item__t"]/@href', reduce=reducers.first)
+                        extractor=Path('.//a[@class="ipc-metadata-list-summary-item__t"]/@href',
+                                       reduce=reducers.first)
                     ),
                     Rule(
                         key='title',
@@ -70,7 +75,8 @@ class DOMHTMLSearchMovieParser(DOMParserBase):
                     ),
                     Rule(
                         key='year',
-                        extractor=Path('.//label[@class="ipc-metadata-list-summary-item__li"]/text()', reduce=reducers.first)
+                        extractor=Path('.//label[@class="ipc-metadata-list-summary-item__li"]/text()',
+                                       reduce=reducers.first)
                     ),
                     Rule(
                         key='kind',
