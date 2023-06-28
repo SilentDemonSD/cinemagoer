@@ -18,6 +18,7 @@
 This script generates the imdbpy.pot file, from the DTD.
 """
 
+
 import re
 import sys
 from datetime import datetime as dt
@@ -46,7 +47,7 @@ msgstr ""
 """
 
 if len(sys.argv) != 2:
-    print("Usage: %s dtd_file" % sys.argv[0])
+    print(f"Usage: {sys.argv[0]} dtd_file")
     sys.exit()
 
 dtdfilename = sys.argv[1]
@@ -60,10 +61,10 @@ print(POT_HEADER_TEMPLATE % {
 })
 for element in sorted(elements):
     if element in DEFAULT_MESSAGES:
-        print('# Default: %s' % DEFAULT_MESSAGES[element])
+        print(f'# Default: {DEFAULT_MESSAGES[element]}')
     else:
-        print('# Default: %s' % element.replace('-', ' ').capitalize())
-    print('msgid "%s"' % element)
+        print(f"# Default: {element.replace('-', ' ').capitalize()}")
+    print(f'msgid "{element}"')
     print('msgstr ""')
     # use this part instead of the line above to generate the po file for English
     # if element in DEFAULT_MESSAGES:

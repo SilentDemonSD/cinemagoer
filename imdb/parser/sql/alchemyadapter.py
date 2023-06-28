@@ -79,7 +79,7 @@ class DNNameObj(object):
         self.dbName = dbName
 
     def __repr__(self):
-        return '<DNNameObj(dbName=%s) [id=%s]>' % (self.dbName, id(self))
+        return f'<DNNameObj(dbName={self.dbName}) [id={id(self)}]>'
 
 
 class DNNameDict(object):
@@ -93,7 +93,7 @@ class DNNameDict(object):
         return DNNameObj(self.colMap[key])
 
     def __repr__(self):
-        return '<DNNameDict(colMap=%s) [id=%s]>' % (self.colMap, id(self))
+        return f'<DNNameDict(colMap={self.colMap}) [id={id(self)}]>'
 
 
 class SQLMetaAdapter(object):
@@ -112,13 +112,10 @@ class SQLMetaAdapter(object):
             return getattr(self.table, name)
         if name == 'columns':
             return DNNameDict(self.colMap)
-        if name == 'idName':
-            return self.colMap.get('id', 'id')
-        return None
+        return self.colMap.get('id', 'id') if name == 'idName' else None
 
     def __repr__(self):
-        return '<SQLMetaAdapter(table=%s, colMap=%s) [id=%s]>' % \
-            (repr(self.table), repr(self.colMap), id(self))
+        return f'<SQLMetaAdapter(table={repr(self.table)}, colMap={repr(self.colMap)}) [id={id(self)}]>'
 
 
 class QAdapter(object):
@@ -135,11 +132,10 @@ class QAdapter(object):
         try:
             return getattr(self.table.c, self.colMap[name])
         except KeyError:
-            raise AttributeError("unable to get '%s'" % name)
+            raise AttributeError(f"unable to get '{name}'")
 
     def __repr__(self):
-        return '<QAdapter(table=%s, colMap=%s) [id=%s]>' % \
-            (repr(self.table), repr(self.colMap), id(self))
+        return f'<QAdapter(table={repr(self.table)}, colMap={repr(self.colMap)}) [id={id(self)}]>'
 
 
 class RowAdapter(object):
@@ -161,7 +157,7 @@ class RowAdapter(object):
         try:
             return getattr(self.row, self.colMap[name])
         except KeyError:
-            raise AttributeError("unable to get '%s'" % name)
+            raise AttributeError(f"unable to get '{name}'")
 
     def __setattr__(self, name, value):
         # FIXME: I can't even think about how much performances suffer,
@@ -187,8 +183,7 @@ class RowAdapter(object):
         object.__setattr__(self, name, value)
 
     def __repr__(self):
-        return '<RowAdapter(row=%s, table=%s, colMap=%s) [id=%s]>' % \
-            (repr(self.row), repr(self.table), repr(self.colMap), id(self))
+        return f'<RowAdapter(row={repr(self.row)}, table={repr(self.table)}, colMap={repr(self.colMap)}) [id={id(self)}]>'
 
 
 class ResultAdapter(object):
@@ -207,9 +202,7 @@ class ResultAdapter(object):
 
     def __len__(self):
         # FIXME: why sqlite returns -1? (that's wrooong!)
-        if self.result.rowcount == -1:
-            return 0
-        return self.result.rowcount
+        return 0 if self.result.rowcount == -1 else self.result.rowcount
 
     def __getitem__(self, key):
         rlist = list(self.result)
@@ -227,9 +220,7 @@ class ResultAdapter(object):
             yield RowAdapter(item, self.table, colMap=self.colMap)
 
     def __repr__(self):
-        return '<ResultAdapter(result=%s, table=%s, colMap=%s) [id=%s]>' % \
-            (repr(self.result), repr(self.table),
-             repr(self.colMap), id(self))
+        return f'<ResultAdapter(result={repr(self.result)}, table={repr(self.table)}, colMap={repr(self.colMap)}) [id={id(self)}]>'
 
 
 class TableAdapter(object):
@@ -246,7 +237,7 @@ class TableAdapter(object):
         for col in table.cols:
             # Column's paramters.
             params = {'nullable': True}
-            params.update(col.params)
+            params |= col.params
             if col.name == 'id':
                 params['primary_key'] = True
             if 'notNone' in params:
@@ -291,7 +282,7 @@ class TableAdapter(object):
         try:
             return result[0]
         except IndexError:
-            raise NotFoundError('no data for ID %s' % theID)
+            raise NotFoundError(f'no data for ID {theID}')
 
     def dropTable(self, checkfirst=True):
         """Drop the table."""
@@ -319,7 +310,7 @@ class TableAdapter(object):
 
     def _createIndex(self, col, checkfirst=True):
         """Create an index for a given (schema) column."""
-        idx_name = '%s_%s' % (self.table.name, col.index or col.name)
+        idx_name = f'{self.table.name}_{col.index or col.name}'
         if checkfirst:
             for index in self.table.indexes:
                 if index.name == idx_name:
@@ -339,8 +330,9 @@ class TableAdapter(object):
         try:
             idx.create()
         except exc.OperationalError as e:
-            _alchemy_logger.warn('Skipping creation of the %s.%s index: %s' %
-                                 (self.sqlmeta.table, col.name, e))
+            _alchemy_logger.warn(
+                f'Skipping creation of the {self.sqlmeta.table}.{col.name} index: {e}'
+            )
 
     def addIndexes(self, ifNotExists=True):
         """Create all required indexes."""
@@ -350,13 +342,13 @@ class TableAdapter(object):
 
     def __call__(self, *args, **kwds):
         """To insert a new row with the syntax: TableClass(key=value, ...)"""
-        taArgs = {}
-        for key, value in list(kwds.items()):
-            taArgs[self.colMap.get(key, key)] = value
+        taArgs = {
+            self.colMap.get(key, key): value for key, value in list(kwds.items())
+        }
         self._ta_insert.execute(*args, **taArgs)
 
     def __repr__(self):
-        return '<TableAdapter(table=%s) [id=%s]>' % (repr(self.table), id(self))
+        return f'<TableAdapter(table={repr(self.table)}) [id={id(self)}]>'
 
 
 # Module-level "cache" for SQLObject classes, to prevent
@@ -441,11 +433,8 @@ def setConnection(uri, tables, encoding='utf8', debug=False):
     # FIXME: why on earth MySQL requires an additional parameter,
     #        is well beyond my understanding...
     if uri.startswith('mysql'):
-        if '?' in uri:
-            uri += '&'
-        else:
-            uri += '?'
-        uri += 'charset=%s' % encoding
+        uri += '&' if '?' in uri else '?'
+        uri += f'charset={encoding}'
     if debug:
         params['echo'] = True
     if uri.startswith('ibm_db'):

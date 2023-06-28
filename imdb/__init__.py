@@ -20,6 +20,7 @@ from the IMDb database. It can fetch data through different media such as
 the IMDb web pages, or a SQL database.
 """
 
+
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from imdb.version import __version__
@@ -57,31 +58,31 @@ imdbURL_base = 'https://www.imdb.com/'
 #       please use the values in the 'urls' attribute
 #       of the IMDbBase subclass instance.
 # http://www.imdb.com/title/
-imdbURL_movie_base = '%stitle/' % imdbURL_base
+imdbURL_movie_base = f'{imdbURL_base}title/'
 # http://www.imdb.com/title/tt%s/
-imdbURL_movie_main = imdbURL_movie_base + 'tt%s/'
+imdbURL_movie_main = f'{imdbURL_movie_base}tt%s/'
 # http://www.imdb.com/name/
-imdbURL_person_base = '%sname/' % imdbURL_base
+imdbURL_person_base = f'{imdbURL_base}name/'
 # http://www.imdb.com/name/nm%s/
-imdbURL_person_main = imdbURL_person_base + 'nm%s/'
+imdbURL_person_main = f'{imdbURL_person_base}nm%s/'
 # http://www.imdb.com/character/
-imdbURL_character_base = '%scharacter/' % imdbURL_base
+imdbURL_character_base = f'{imdbURL_base}character/'
 # http://www.imdb.com/character/ch%s/
-imdbURL_character_main = imdbURL_character_base + 'ch%s/'
+imdbURL_character_main = f'{imdbURL_character_base}ch%s/'
 # http://www.imdb.com/company/
-imdbURL_company_base = '%scompany/' % imdbURL_base
+imdbURL_company_base = f'{imdbURL_base}company/'
 # http://www.imdb.com/company/co%s/
-imdbURL_company_main = imdbURL_company_base + 'co%s/'
+imdbURL_company_main = f'{imdbURL_company_base}co%s/'
 # http://www.imdb.com/keyword/%s/
-imdbURL_keyword_main = imdbURL_base + 'search/keyword/?keywords=%s'
+imdbURL_keyword_main = f'{imdbURL_base}search/keyword/?keywords=%s'
 # http://www.imdb.com/chart/top
-imdbURL_top250 = imdbURL_base + 'chart/top'
+imdbURL_top250 = f'{imdbURL_base}chart/top'
 # http://www.imdb.com/chart/bottom
-imdbURL_bottom100 = imdbURL_base + 'chart/bottom'
+imdbURL_bottom100 = f'{imdbURL_base}chart/bottom'
 # http://www.imdb.com/find/?%s
-imdbURL_find = imdbURL_base + 'find/?%s'
+imdbURL_find = f'{imdbURL_base}find/?%s'
 # http://www.imdb.com/list/
-imdbURL_list_base = imdbURL_base + 'list/'
+imdbURL_list_base = f'{imdbURL_base}list/'
 
 # Name of the configuration files.
 confFileNames = ['cinemagoer.cfg', 'imdbpy.cfg']
@@ -100,7 +101,7 @@ class ConfigParserWithCase(configparser.ConfigParser):
             super(configparser.ConfigParser, self).__init__(defaults=defaults)
         if confFile is None:
             for confFileName in confFileNames:
-                dotFileName = '.' + confFileName
+                dotFileName = f'.{confFileName}'
                 # Current and home directory.
                 confFile = [os.path.join(os.getcwd(), confFileName),
                             os.path.join(os.getcwd(), dotFileName),
@@ -119,7 +120,7 @@ class ConfigParserWithCase(configparser.ConfigParser):
                 self.read(fname)
             except (configparser.MissingSectionHeaderError,
                     configparser.ParsingError) as e:
-                _aux_logger.warn('Troubles reading config file: %s' % e)
+                _aux_logger.warn(f'Troubles reading config file: {e}')
             # Stop at the first valid file.
             if self.has_section('imdbpy'):
                 break
@@ -174,7 +175,7 @@ def IMDb(accessSystem=None, *arguments, **keywords):
             kwds.update(keywords)
             keywords = kwds
         except Exception as e:
-            _imdb_logger.warn('Unable to read configuration file; complete error: %s' % e)
+            _imdb_logger.warn(f'Unable to read configuration file; complete error: {e}')
             # It just LOOKS LIKE a bad habit: we tried to read config
             # options from some files, but something is gone horribly
             # wrong: ignore everything and pretend we were called with
@@ -190,7 +191,7 @@ def IMDb(accessSystem=None, *arguments, **keywords):
             import logging.config
             logging.config.fileConfig(os.path.expanduser(logCfg))
         except Exception as e:
-            _imdb_logger.warn('unable to read logger config: %s' % e)
+            _imdb_logger.warn(f'unable to read logger config: {e}')
     if accessSystem in ('http', 'https', 'web', 'html'):
         from .parser.http import IMDbHTTPAccessSystem
         return IMDbHTTPAccessSystem(*arguments, **keywords)
@@ -204,7 +205,7 @@ def IMDb(accessSystem=None, *arguments, **keywords):
             raise IMDbError('the sql access system is not installed')
         return IMDbSqlAccessSystem(*arguments, **keywords)
     else:
-        raise IMDbError('unknown kind of data access system: "%s"' % accessSystem)
+        raise IMDbError(f'unknown kind of data access system: "{accessSystem}"')
 
 
 # Cinemagoer alias
@@ -276,49 +277,49 @@ class IMDbBase:
         """Set the urls used accessing the IMDb site."""
         imdbURL_base = imdbURL_base.strip().strip('"\'')
         if not imdbURL_base.startswith(('https://', 'http://')):
-            imdbURL_base = 'https://%s' % imdbURL_base
+            imdbURL_base = f'https://{imdbURL_base}'
         if not imdbURL_base.endswith('/'):
-            imdbURL_base = '%s/' % imdbURL_base
+            imdbURL_base = f'{imdbURL_base}/'
         # http://www.imdb.com/title/
-        imdbURL_movie_base = '%stitle/' % imdbURL_base
+        imdbURL_movie_base = f'{imdbURL_base}title/'
         # http://www.imdb.com/title/tt%s/
-        imdbURL_movie_main = imdbURL_movie_base + 'tt%s/'
+        imdbURL_movie_main = f'{imdbURL_movie_base}tt%s/'
         # http://www.imdb.com/name/
-        imdbURL_person_base = '%sname/' % imdbURL_base
+        imdbURL_person_base = f'{imdbURL_base}name/'
         # http://www.imdb.com/name/nm%s/
-        imdbURL_person_main = imdbURL_person_base + 'nm%s/'
+        imdbURL_person_main = f'{imdbURL_person_base}nm%s/'
         # http://www.imdb.com/character/
-        imdbURL_character_base = '%scharacter/' % imdbURL_base
+        imdbURL_character_base = f'{imdbURL_base}character/'
         # http://www.imdb.com/character/ch%s/
-        imdbURL_character_main = imdbURL_character_base + 'ch%s/'
+        imdbURL_character_main = f'{imdbURL_character_base}ch%s/'
         # http://www.imdb.com/company/
-        imdbURL_company_base = '%scompany/' % imdbURL_base
+        imdbURL_company_base = f'{imdbURL_base}company/'
         # http://www.imdb.com/company/co%s/
-        imdbURL_company_main = imdbURL_company_base + 'co%s/'
+        imdbURL_company_main = f'{imdbURL_company_base}co%s/'
         # http://www.imdb.com/keyword/%s/
-        imdbURL_keyword_main = imdbURL_base + '/search/keyword?keywords=%s'
+        imdbURL_keyword_main = f'{imdbURL_base}/search/keyword?keywords=%s'
         # http://www.imdb.com/chart/top
-        imdbURL_top250 = imdbURL_base + 'chart/top'
+        imdbURL_top250 = f'{imdbURL_base}chart/top'
         # http://www.imdb.com/chart/bottom
-        imdbURL_bottom100 = imdbURL_base + 'chart/bottom'
+        imdbURL_bottom100 = f'{imdbURL_base}chart/bottom'
         # http://www.imdb.com/chart/moviemeter
-        imdbURL_moviemeter100 = imdbURL_base + 'chart/moviemeter'
+        imdbURL_moviemeter100 = f'{imdbURL_base}chart/moviemeter'
         # http://www.imdb.com/chart/tvmeter
-        imdbURL_tvmeter100 = imdbURL_base + 'chart/tvmeter'
+        imdbURL_tvmeter100 = f'{imdbURL_base}chart/tvmeter'
         # http://www.imdb.com/chart/toptv
-        imdbURL_toptv250 = imdbURL_base + 'chart/toptv'
+        imdbURL_toptv250 = f'{imdbURL_base}chart/toptv'
         # https://www.imdb.com/india/top-rated-indian-movies
-        imdbURL_topindian250 = imdbURL_base + 'india/top-rated-indian-movies'
+        imdbURL_topindian250 = f'{imdbURL_base}india/top-rated-indian-movies'
         # http://www.imdb.com/chart/boxoffice/
-        imdbURL_boxoffice = imdbURL_base + 'chart/boxoffice/'
+        imdbURL_boxoffice = f'{imdbURL_base}chart/boxoffice/'
         # http://www.imdb.com/find/?%s
-        imdbURL_find = imdbURL_base + 'find/?%s'
+        imdbURL_find = f'{imdbURL_base}find/?%s'
         # http://www.imdb.com/search/title?%s
-        imdbURL_search_movie_advanced = imdbURL_base + 'search/title/?%s'
+        imdbURL_search_movie_advanced = f'{imdbURL_base}search/title/?%s'
         # http://www.imdb.com/list/
-        imdbURL_list_base = imdbURL_base + 'list/'
+        imdbURL_list_base = f'{imdbURL_base}list/'
         # https://www.imdb.com/showtimes
-        imdbURL_showtimes = imdbURL_base + 'showtimes'
+        imdbURL_showtimes = f'{imdbURL_base}showtimes'
         self.urls = dict(
             movie_base=imdbURL_movie_base,
             movie_main=imdbURL_movie_main,
@@ -384,7 +385,7 @@ class IMDbBase:
     def _get_infoset(self, prefname):
         """Return methods with the name starting with prefname."""
         infoset = []
-        excludes = ('%sinfoset' % prefname,)
+        excludes = (f'{prefname}infoset', )
         preflen = len(prefname)
         for name in dir(self.__class__):
             if name.startswith(prefname) and name not in excludes:
@@ -805,8 +806,9 @@ class IMDbBase:
             mopID = mop.companyID
             prefix = 'company'
         else:
-            raise IMDbError('object ' + repr(mop) +
-                            ' is not a Movie, Person, Character or Company instance')
+            raise IMDbError(
+                f'object {repr(mop)} is not a Movie, Person, Character or Company instance'
+            )
         if mopID is None:
             # XXX: enough?  It's obvious that there are Characters
             #      objects without characterID, so I think they should
@@ -839,7 +841,7 @@ class IMDbBase:
                 continue
             _imdb_logger.debug('retrieving "%s" info set', i)
             try:
-                method = getattr(aSystem, 'get_%s_%s' % (prefix, i.replace(' ', '_')))
+                method = getattr(aSystem, f"get_{prefix}_{i.replace(' ', '_')}")
             except AttributeError:
                 _imdb_logger.error('unknown information set "%s"', i)
                 # Keeps going.
@@ -858,7 +860,7 @@ class IMDbBase:
                     raise
             keys = None
             if 'data' in ret:
-                res.update(ret['data'])
+                res |= ret['data']
                 if isinstance(ret['data'], dict):
                     keys = list(ret['data'].keys())
             if 'info sets' in ret:
@@ -885,7 +887,7 @@ class IMDbBase:
         if isinstance(mop, Movie.Movie):
             mopID = mop.movieID
         else:
-            raise IMDbError('object ' + repr(mop) + ' is not a Movie instance')
+            raise IMDbError(f'object {repr(mop)} is not a Movie instance')
         if mopID is None:
             raise IMDbDataAccessError('supplied object has null movieID, personID or companyID')
         if mop.accessSystem == self.accessSystem:
@@ -920,7 +922,7 @@ class IMDbBase:
                 raise
         keys = None
         if 'data' in ret:
-            res.update(ret['data'])
+            res |= ret['data']
             if isinstance(ret['data'], dict):
                 keys = list(ret['data'].keys())
         if 'info sets' in ret:
@@ -998,7 +1000,7 @@ class IMDbBase:
                 # For titles do additional check for kind
                 if kind != 'tt' or title_kind == item['kind']:
                     return item.getID()
-                elif kind == 'tt':
+                else:
                     title_only_matches.append(item.getID())
         # imdbpy2sql.py could detected wrong type, so if no title and kind
         # matches found - collect all results with title only match
@@ -1072,8 +1074,9 @@ class IMDbBase:
             else:
                 imdbID = aSystem.company2imdbID(build_company_name(mop))
         else:
-            raise IMDbError('object ' + repr(mop) +
-                            ' is not a Movie, Person or Character instance')
+            raise IMDbError(
+                f'object {repr(mop)} is not a Movie, Person or Character instance'
+            )
         return imdbID
 
     def get_imdbURL(self, mop):
@@ -1091,8 +1094,9 @@ class IMDbBase:
         elif isinstance(mop, Company.Company):
             url_firstPart = imdbURL_company_main
         else:
-            raise IMDbError('object ' + repr(mop) +
-                            ' is not a Movie, Person, Character or Company instance')
+            raise IMDbError(
+                f'object {repr(mop)} is not a Movie, Person, Character or Company instance'
+            )
         return url_firstPart % imdbID
 
     def get_special_methods(self):
@@ -1105,12 +1109,12 @@ class IMDbBase:
                 base_methods.append(name)
         for name in dir(self.__class__):
             if name.startswith('_') or name in base_methods or \
-                    name.startswith('get_movie_') or \
-                    name.startswith('get_person_') or \
-                    name.startswith('get_company_') or \
-                    name.startswith('get_character_'):
+                        name.startswith('get_movie_') or \
+                        name.startswith('get_person_') or \
+                        name.startswith('get_company_') or \
+                        name.startswith('get_character_'):
                 continue
             member = getattr(self.__class__, name)
             if isinstance(member, (MethodType, FunctionType)):
-                sm_dict.update({name: member.__doc__})
+                sm_dict[name] = member.__doc__
         return sm_dict

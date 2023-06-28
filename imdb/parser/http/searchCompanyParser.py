@@ -25,6 +25,7 @@ would be:
 http://www.imdb.com/find?q=Columbia+Pictures&s=co
 """
 
+
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from imdb.utils import analyze_company_name
@@ -32,6 +33,8 @@ from imdb.utils import analyze_company_name
 from .piculet import Path, Rule, Rules, reducers
 from .searchMovieParser import DOMHTMLSearchMovieParser
 from .utils import analyze_imdbid
+
+
 
 
 class DOMHTMLSearchCompanyParser(DOMHTMLSearchMovieParser):
@@ -45,25 +48,40 @@ class DOMHTMLSearchCompanyParser(DOMHTMLSearchMovieParser):
                 rules=[
                     Rule(
                         key='link',
-                        extractor=Path('.//a[@class="ipc-metadata-list-summary-item__t"]/@href', reduce=reducers.first)
+                        extractor=Path(
+                            './/a[@class="ipc-metadata-list-summary-item__t"]/@href',
+                            reduce=reducers.first,
+                        ),
                     ),
                     Rule(
                         key='name',
-                        extractor=Path('.//a[@class="ipc-metadata-list-summary-item__t"]/text()')
+                        extractor=Path(
+                            './/a[@class="ipc-metadata-list-summary-item__t"]/text()'
+                        ),
                     ),
                     Rule(
                         key='country',
-                        extractor=Path('.//label[@class="ipc-metadata-list-summary-item__li"]/text()',
-                                       reduce=reducers.first)
+                        extractor=Path(
+                            './/label[@class="ipc-metadata-list-summary-item__li"]/text()',
+                            reduce=reducers.first,
+                        ),
                     ),
                 ],
                 transform=lambda x: (
                     analyze_imdbid(x.get('link')),
-                    analyze_company_name(x.get('name') + (' [%s]' % x.get('country') if x.get('country') else ''))
-                )
-            )
+                    analyze_company_name(
+                        x.get('name')
+                        + (
+                            f" [{x.get('country')}]"
+                            if x.get('country')
+                            else ''
+                        )
+                    ),
+                ),
+            ),
         )
     ]
+
 
 
 _OBJECTS = {

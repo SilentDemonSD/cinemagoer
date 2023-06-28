@@ -60,11 +60,12 @@ def generate_content(fd, headers, table):
     """
     data = []
     headers_len = len(headers)
-    data_transf = {}
     table_name = table.name
-    for column, conf in DB_TRANSFORM.get(table_name, {}).items():
-        if 'transform' in conf:
-            data_transf[column] = conf['transform']
+    data_transf = {
+        column: conf['transform']
+        for column, conf in DB_TRANSFORM.get(table_name, {}).items()
+        if 'transform' in conf
+    }
     for line in fd:
         s_line = line.decode('utf-8').strip().split('\t')
         if len(s_line) != headers_len:
@@ -74,12 +75,12 @@ def generate_content(fd, headers, table):
             if key not in info:
                 continue
             info[key] = tranf(info[key])
-        if table_name == 'title_basics':
-            info['t_soundex'] = title_soundex(info['primaryTitle'])
+        if table_name == 'name_basics':
+            info['ns_soundex'], info['sn_soundex'], info['s_soundex'] = name_soundexes(info['primaryName'])
         elif table_name == 'title_akas':
             info['t_soundex'] = title_soundex(info['title'])
-        elif table_name == 'name_basics':
-            info['ns_soundex'], info['sn_soundex'], info['s_soundex'] = name_soundexes(info['primaryName'])
+        elif table_name == 'title_basics':
+            info['t_soundex'] = title_soundex(info['primaryTitle'])
         data.append(info)
         if len(data) >= BLOCK_SIZE:
             yield data
@@ -97,7 +98,7 @@ def build_table(fn, headers):
     :param headers: headers in the file
     :type headers: list
     """
-    logging.debug('building table for file %s' % fn)
+    logging.debug(f'building table for file {fn}')
     table_name = fn.replace(TSV_EXT, '').replace('.', '_')
     table_map = DB_TRANSFORM.get(table_name) or {}
     columns = []
@@ -126,22 +127,22 @@ def import_file(fn, engine):
     :param engine: SQLAlchemy engine
     :type engine: :class:`sqlalchemy.engine.base.Engine`
     """
-    logging.info('begin processing file %s' % fn)
+    logging.info(f'begin processing file {fn}')
     connection = engine.connect()
     count = 0
     nr_of_lines = 0
     fn_basename = os.path.basename(fn)
     with gzip.GzipFile(fn, 'rb') as gz_file:
         gz_file.readline()
-        for line in gz_file:
+        for _ in gz_file:
             nr_of_lines += 1
     with gzip.GzipFile(fn, 'rb') as gz_file:
         headers = gz_file.readline().decode('utf-8').strip().split('\t')
-        logging.debug('headers of file %s: %s' % (fn, ','.join(headers)))
+        logging.debug(f"headers of file {fn}: {','.join(headers)}")
         table = build_table(fn_basename, headers)
         try:
             table.drop()
-            logging.debug('table %s dropped' % table.name)
+            logging.debug(f'table {table.name} dropped')
         except:
             pass
         insert = table.insert()
@@ -160,7 +161,7 @@ def import_file(fn, engine):
                 count += len(block)
                 percent = count * 100 / nr_of_lines
         except Exception as e:
-            logging.error('error processing data on table %s: %s' % (table.name, e))
+            logging.error(f'error processing data on table {table.name}: {e}')
         logging.info('processed file %s: %d entries' % (fn, count))
 
 
@@ -172,13 +173,13 @@ def import_dir(dir_name, engine, cleanup=False):
     :param engine: SQLAlchemy engine
     :type engine: :class:`sqlalchemy.engine.base.Engine`
     """
-    for fn in glob.glob(os.path.join(dir_name, '*%s' % TSV_EXT)):
+    for fn in glob.glob(os.path.join(dir_name, f'*{TSV_EXT}')):
         if not os.path.isfile(fn):
-            logging.debug('skipping file %s' % fn)
+            logging.debug(f'skipping file {fn}')
             continue
         import_file(fn, engine)
         if cleanup:
-            logging.debug('Removing file %s' % fn)
+            logging.debug(f'Removing file {fn}')
             os.remove(fn)
 
  

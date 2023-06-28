@@ -183,7 +183,7 @@ for lang in LANG_COUNTRIES:
 
 def toUTF8(articles):
     """Convert a list of unicode articles to utf-8 encoded strings."""
-    return tuple([art.encode('utf8') for art in articles])
+    return tuple(art.encode('utf8') for art in articles)
 
 
 def toDicts(articles):

@@ -8,6 +8,7 @@ Usage: get_top_bottom_movies
 Return top and bottom 10 movies, by ratings.
 """
 
+
 import sys
 
 # Import the Cinemagoer package.
@@ -29,7 +30,7 @@ bottom100 = i.get_bottom100_movies()
 
 for label, ml in [('top 10', top250[:10]), ('bottom 10', bottom100[:10])]:
     print('')
-    print('%s movies' % label)
+    print(f'{label} movies')
     print('rating\tvotes\ttitle')
     for movie in ml:
         outl = '%s\t%s\t%s' % (movie.get('rating'), movie.get('votes'),

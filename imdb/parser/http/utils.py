@@ -54,9 +54,7 @@ def analyze_imdbid(href):
     if not href:
         return None
     match = re_imdbid.search(href)
-    if not match:
-        return None
-    return str(match.group(2))
+    return None if not match else str(match.group(2))
 
 
 _modify_keys = list(Movie.keys_tomodify_list) + list(Person.keys_tomodify_list)
@@ -129,21 +127,20 @@ def build_person(txt, personID=None, billingPos=None,
         elif role_comment[-6:] == '& ....':
             role_comment = role_comment[:-6].rstrip()
         # Get the notes.
-        if roleID is not None:
-            if not isinstance(roleID, list):
-                cmt_idx = role_comment.find('(')
-                if cmt_idx != -1:
-                    role = role_comment[:cmt_idx].rstrip()
-                    notes = role_comment[cmt_idx:]
-                else:
-                    # Just a role, without notes.
-                    role = role_comment
-            else:
-                role = role_comment
-        else:
+        if roleID is None:
             # We're managing something that doesn't have a 'role', so
             # everything are notes.
             notes = role_comment
+        elif not isinstance(roleID, list):
+            cmt_idx = role_comment.find('(')
+            if cmt_idx != -1:
+                role = role_comment[:cmt_idx].rstrip()
+                notes = role_comment[cmt_idx:]
+            else:
+                # Just a role, without notes.
+                role = role_comment
+        else:
+            role = role_comment
     if role == '....':
         role = ''
     roleNotes = []
@@ -180,10 +177,7 @@ def build_person(txt, personID=None, billingPos=None,
         # Set to 'debug', since build_person is expected to receive some crap.
         _b_p_logger.debug('empty name or personID for "%s"', txt)
     if role:
-        if isinstance(role, list):
-            role = [r.strip() for r in role]
-        else:
-            role = role.strip()
+        role = [r.strip() for r in role] if isinstance(role, list) else role.strip()
     if notes:
         if isinstance(notes, list):
             notes = [n.strip() for n in notes]
@@ -223,10 +217,7 @@ def build_movie(txt, movieID=None, roleID=None, status=None,
     # FIXME: Oook, lets face it: build_movie and build_person are now
     # two horrible sets of patches to support the new IMDb design.  They
     # must be rewritten from scratch.
-    if _parsingCompany:
-        _defSep = ' ... '
-    else:
-        _defSep = ' .... '
+    _defSep = ' ... ' if _parsingCompany else ' .... '
     title = re_spaces.sub(' ', txt).strip()
     # Split the role/notes from the movie title.
     tsplit = title.split(_defSep, 1)
@@ -238,14 +229,8 @@ def build_movie(txt, movieID=None, roleID=None, status=None,
         role = tsplit[1].lstrip()
     if title[-9:] == 'TV Series':
         title = title[:-9].rstrip()
-    # elif title[-7:] == '(short)':
-    #     title = title[:-7].rstrip()
-    # elif title[-11:] == '(TV series)':
-    #     title = title[:-11].rstrip()
-    # elif title[-10:] == '(TV movie)':
-    #     title = title[:-10].rstrip()
     elif title[-14:] == 'TV mini-series':
-        title = title[:-14] + ' (mini)'
+        title = f'{title[:-14]} (mini)'
     if title and title.endswith(_defSep.rstrip()):
         title = title[:-len(_defSep) + 1]
     # Try to understand where the movie title ends.
@@ -253,13 +238,11 @@ def build_movie(txt, movieID=None, roleID=None, status=None,
         if year:
             break
         if title[-1:] != ')':
-            # Ignore the silly "TV Series" notice.
-            if title[-9:] == 'TV Series':
-                title = title[:-9].rstrip()
-                continue
-            else:
+            if title[-9:] != 'TV Series':
                 # Just a title: stop here.
                 break
+            title = title[:-9].rstrip()
+            continue
         # Try to match paired parentheses; yes: sometimes there are
         # parentheses inside comments...
         nidx = title.rfind('(')
@@ -278,22 +261,16 @@ def build_movie(txt, movieID=None, roleID=None, status=None,
         # Else, in parentheses there are some notes.
         # XXX: should the notes in the role half be kept separated
         #      from the notes in the movie title half?
-        if notes:
-            notes = '%s %s' % (title[nidx:], notes)
-        else:
-            notes = title[nidx:]
+        notes = f'{title[nidx:]} {notes}' if notes else title[nidx:]
         title = title[:nidx].rstrip()
     if year:
         year = year.strip()
         if title[-1:] == ')':
             fpIdx = title.rfind('(')
             if fpIdx != -1:
-                if notes:
-                    notes = '%s %s' % (title[fpIdx:], notes)
-                else:
-                    notes = title[fpIdx:]
+                notes = f'{title[fpIdx:]} {notes}' if notes else title[fpIdx:]
                 title = title[:fpIdx].rstrip()
-        title = '%s (%s)' % (title, year)
+        title = f'{title} ({year})'
     if not roleID:
         roleID = None
     elif len(roleID) == 1:
@@ -407,15 +384,10 @@ class DOMParserBase(object):
         getRefs can be used to force the gathering of movies/persons
         references."""
         self.reset()
-        if getRefs is not None:
-            self.getRefs = getRefs
-        else:
-            self.getRefs = self._defGetRefs
+        self.getRefs = getRefs if getRefs is not None else self._defGetRefs
         if PY2 and isinstance(html_string, str):
             html_string = html_string.decode('utf-8')
-        # Temporary fix: self.parse_dom must work even for empty strings.
-        html_string = self.preprocess_string(html_string)
-        if html_string:
+        if html_string := self.preprocess_string(html_string):
             html_string = html_string.replace('&nbsp;', ' ')
             dom = self.get_dom(html_string)
             try:
@@ -470,13 +442,12 @@ class DOMParserBase(object):
         """Convert the element to a string."""
         if isinstance(element, str):
             return str(element)
-        else:
-            try:
-                return ElementTree.tostring(element, encoding='utf8')
-            except Exception:
-                self._logger.error('%s: unable to convert to string',
-                                   self._cname, exc_info=True)
-                return ''
+        try:
+            return ElementTree.tostring(element, encoding='utf8')
+        except Exception:
+            self._logger.error('%s: unable to convert to string',
+                               self._cname, exc_info=True)
+            return ''
 
     def clone(self, element):
         """Clone an element."""
@@ -494,7 +465,7 @@ class DOMParserBase(object):
             # re._pattern_type is present only since Python 2.5.
             if isinstance(getattr(src, 'sub', None), Callable):
                 html_string = src.sub(sub, html_string)
-            elif isinstance(src, str) or isinstance(src, unicode):
+            elif isinstance(src, (str, unicode)):
                 html_string = html_string.replace(src, sub)
             elif isinstance(src, Callable):
                 try:
@@ -540,17 +511,11 @@ class DOMParserBase(object):
             titl_re = r'(%s)' % '|'.join(
                 [re.escape(x) for x in list(self._titlesRefs.keys())]
             )
-            if titl_re != r'()':
-                re_titles = re.compile(titl_re, re.U)
-            else:
-                re_titles = None
+            re_titles = re.compile(titl_re, re.U) if titl_re != r'()' else None
             nam_re = r'(%s)' % '|'.join(
                 [re.escape(x) for x in list(self._namesRefs.keys())]
             )
-            if nam_re != r'()':
-                re_names = re.compile(nam_re, re.U)
-            else:
-                re_names = None
+            re_names = re.compile(nam_re, re.U) if nam_re != r'()' else None
             _putRefs(data, re_titles, re_names)
         return {'data': data,
                 'titlesRefs': self._titlesRefs,
@@ -563,7 +528,7 @@ def _parse_ref(text, link, info):
     if link.find('/title/tt') != -1:
         yearK = re_yearKind_index.match(info)
         if yearK and yearK.start() == 0:
-            text += ' %s' % info[:yearK.end()]
+            text += f' {info[:yearK.end()]}'
     return text.replace('\n', ' '), link
 
 

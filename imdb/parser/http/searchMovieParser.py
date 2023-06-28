@@ -39,17 +39,13 @@ def process_title(tdict):
     imdbid = analyze_imdbid(tdict.get('link'))
     title = tdict.get('title', '').strip()
     kind = (tdict.get('kind') or '').strip()
-    if not re_m_kind.match('(%s)' % kind):
+    if not re_m_kind.match(f'({kind})'):
         kind = ''
-    year = (tdict.get('year') or '').strip()
-    if year:
-        title += ' (%s)' % year
+    if year := (tdict.get('year') or '').strip():
+        title += f' ({year})'
     if kind:
-        title += ' (%s)' % kind
-    if title:
-        analized_title = analyze_title(title)
-    else:
-        analized_title = {}
+        title += f' ({kind})'
+    analized_title = analyze_title(title) if title else {}
     akas = tdict.get('akas')
     cover = tdict.get('cover url')
     return imdbid, analized_title, akas, cover

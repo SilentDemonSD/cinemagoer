@@ -23,6 +23,7 @@ For more information, please refer to the documentation:
 https://piculet.readthedocs.io/
 """
 
+
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
@@ -41,7 +42,6 @@ PY2 = sys.version_info < (3, 0)
 if PY2:
     str, bytes = unicode, str
 
-if PY2:
     from cgi import escape as html_escape
     from htmlentitydefs import name2codepoint  # noqa: I003
     from HTMLParser import HTMLParser
@@ -108,7 +108,7 @@ class HTMLNormalizer(HTMLParser):
             # stack empty -> not in omit mode
             if '@' in tag:
                 # email address in angular brackets
-                print('&lt;%s&gt;' % tag, end='')
+                print(f'&lt;{tag}&gt;', end='')
                 return
             if (tag == 'li') and (self._open_tags[-1] == 'li'):
                 self.handle_endtag('li')
@@ -125,8 +125,8 @@ class HTMLNormalizer(HTMLParser):
                 attributes.append(markup)
             line = '<%(tag)s%(attrs)s%(slash)s>' % {
                 'tag': tag,
-                'attrs': (' ' + ' '.join(attributes)) if len(attributes) > 0 else '',
-                'slash': ' /' if tag in self.SELF_CLOSING_TAGS else ''
+                'attrs': ' ' + ' '.join(attributes) if attributes else '',
+                'slash': ' /' if tag in self.SELF_CLOSING_TAGS else '',
             }
             print(line, end='')
             if tag not in self.SELF_CLOSING_TAGS:
@@ -242,7 +242,7 @@ else:
             if path[0] == '/':
                 # ElementTree doesn't support absolute paths
                 # TODO: handle this properly, find root of tree
-                path = '.' + path
+                path = f'.{path}'
 
             if path.endswith('//text()'):
                 _apply = descendant
@@ -347,15 +347,17 @@ class Extractor:
                 reduce = reducers.get(reducer)
                 if reduce is None:
                     raise ValueError('Unknown reducer')
-            extractor = Path(path, reduce, transform=transform, foreach=foreach)
+            return Path(path, reduce, transform=transform, foreach=foreach)
         else:
             items = item.get('items')
             # TODO: check for None
             rules = [Rule.from_map(i) for i in items]
-            extractor = Rules(rules, section=item.get('section'),
-                              transform=transform, foreach=foreach)
-
-        return extractor
+            return Rules(
+                rules,
+                section=item.get('section'),
+                transform=transform,
+                foreach=foreach,
+            )
 
 
 class Path(Extractor):
@@ -397,11 +399,7 @@ class Path(Extractor):
         :return: Extracted text.
         """
         selected = self.path(element)
-        if len(selected) == 0:
-            value = None
-        else:
-            value = self.reduce(selected)
-        return value
+        return None if len(selected) == 0 else self.reduce(selected)
 
 
 class Rules(Extractor):
@@ -453,8 +451,8 @@ class Rules(Extractor):
         data = {}
         for rule in self.rules:
             extracted = rule.extract(subroot)
-            data.update(extracted)
-        return data if len(data) > 0 else _EMPTY
+            data |= extracted
+        return data if data else _EMPTY
 
 
 class Rule:
@@ -512,11 +510,11 @@ class Rule:
                 # don't try to transform list items by default, it might waste a lot of time
                 raw_values = [self.extractor.extract(r, transform=False)
                               for r in self.extractor.foreach(subroot)]
-                values = [v for v in raw_values if (v is not None) and (v is not _EMPTY)]
-                if len(values) == 0:
-                    continue
-                data[key] = values if self.extractor.transform is None else \
-                    list(map(self.extractor.transform, values))
+                if values := [
+                    v for v in raw_values if (v is not None) and (v is not _EMPTY)
+                ]:
+                    data[key] = values if self.extractor.transform is None else \
+                            list(map(self.extractor.transform, values))
         return data
 
 
@@ -720,8 +718,7 @@ def scrape(document, spec):
     pre = spec.get('pre')
     if pre is not None:
         preprocess(root, pre)
-    data = extract(root, spec.get('items'), section=spec.get('section'))
-    return data
+    return extract(root, spec.get('items'), section=spec.get('section'))
 
 
 ###########################################################

@@ -103,15 +103,12 @@ class Company(_Container):
 
     def _additional_keys(self):
         """Valid keys to append to the data.keys() list."""
-        if 'name' in self.data:
-            return ['long imdb name']
-        return []
+        return ['long imdb name'] if 'name' in self.data else []
 
     def _getitem(self, key):
         """Handle special keys."""
-        # XXX: can a company have an imdbIndex?
-        if 'name' in self.data:
-            if key == 'long imdb name':
+        if key == 'long imdb name':
+            if 'name' in self.data:
                 return build_company_name(self.data)
         return None
 
@@ -141,15 +138,15 @@ class Company(_Container):
         if not isinstance(other, self.__class__):
             return False
         if 'name' in self.data and \
-                'name' in other.data and \
-                build_company_name(self.data) == \
-                build_company_name(other.data):
+                    'name' in other.data and \
+                    build_company_name(self.data) == \
+                    build_company_name(other.data):
             return True
-        if self.accessSystem == other.accessSystem and \
-                self.companyID is not None and \
-                self.companyID == other.companyID:
-            return True
-        return False
+        return (
+            self.accessSystem == other.accessSystem
+            and self.companyID is not None
+            and self.companyID == other.companyID
+        )
     isSameCompany = isSameName
 
     def __deepcopy__(self, memo):
@@ -167,9 +164,7 @@ class Company(_Container):
 
     def __repr__(self):
         """String representation of a Company object."""
-        return '<Company id:%s[%s] name:_%s_>' % (
-            self.companyID, self.accessSystem, self.get('long imdb name')
-        )
+        return f"<Company id:{self.companyID}[{self.accessSystem}] name:_{self.get('long imdb name')}_>"
 
     def __str__(self):
         """Simply print the short name."""
@@ -182,10 +177,8 @@ class Company(_Container):
         s = 'Company\n=======\nName: %s\n' % self.get('name', '')
         for k in ('distributor', 'production company', 'miscellaneous company',
                   'special effects company'):
-            d = self.get(k, [])[:5]
-            if not d:
-                continue
-            s += 'Last movies from this company (%s): %s.\n' % (
-                k, '; '.join([x.get('long imdb title', '') for x in d])
-            )
+            if d := self.get(k, [])[:5]:
+                s += 'Last movies from this company (%s): %s.\n' % (
+                    k, '; '.join([x.get('long imdb title', '') for x in d])
+                )
         return s

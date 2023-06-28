@@ -62,7 +62,7 @@ class DBCol(object):
 
     def __str__(self):
         """Class representation."""
-        s = '<DBCol %s %s' % (self.name, _strMap[self.kind])
+        s = f'<DBCol {self.name} {_strMap[self.kind]}'
         if self.index:
             s += ' INDEX'
             if self.indexLen:
@@ -72,29 +72,29 @@ class DBCol(object):
         if 'default' in self.params:
             val = self.params['default']
             if val is not None:
-                val = '"%s"' % val
-            s += ' DEFAULT=%s' % val
+                val = f'"{val}"'
+            s += f' DEFAULT={val}'
         for param in self.params:
             if param == 'default':
                 continue
-            s += ' %s' % param.upper()
+            s += f' {param.upper()}'
         s += '>'
         return s
 
     def __repr__(self):
         """Class representation."""
-        s = '<DBCol(name="%s", %s' % (self.name, _strMap[self.kind])
+        s = f'<DBCol(name="{self.name}", {_strMap[self.kind]}'
         if self.index:
-            s += ', index="%s"' % self.index
+            s += f', index="{self.index}"'
         if self.indexLen:
             s += ', indexLen=%d' % self.indexLen
         if self.foreignKey:
-            s += ', foreignKey="%s"' % self.foreignKey
+            s += f', foreignKey="{self.foreignKey}"'
         for param in self.params:
             val = self.params[param]
             if isinstance(val, str):
-                val = '"%s"' % val
-            s += ', %s=%s' % (param, val)
+                val = f'"{val}"'
+            s += f', {param}={val}'
         s += ')>'
         return s
 
@@ -112,17 +112,20 @@ class DBTable(object):
     def __str__(self):
         """Class representation."""
         return '<DBTable %s (%d cols, %d values)>' % (
-            self.name, len(self.cols), sum([len(v) for v in list(self.values.values())])
+            self.name,
+            len(self.cols),
+            sum(len(v) for v in list(self.values.values())),
         )
 
     def __repr__(self):
         """Class representation."""
-        s = '<DBTable(name="%s"' % self.name
-        col_s = ', '.join([repr(col).rstrip('>').lstrip('<') for col in self.cols])
-        if col_s:
-            s += ', %s' % col_s
+        s = f'<DBTable(name="{self.name}"'
+        if col_s := ', '.join(
+            [repr(col).rstrip('>').lstrip('<') for col in self.cols]
+        ):
+            s += f', {col_s}'
         if self.values:
-            s += ', values=%s' % self.values
+            s += f', values={self.values}'
         s += ')>'
         return s
 
