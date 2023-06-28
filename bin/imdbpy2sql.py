@@ -24,6 +24,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
+
 import os
 import sys
 import getopt
@@ -193,11 +194,11 @@ for opt in optlist:
         IMDBIDS_METHOD = opt[1]
     elif opt[0] in ('-e', '--execute'):
         if opt[1].find(':') == -1:
-            print('WARNING: wrong command syntax: "%s"' % opt[1])
+            print(f'WARNING: wrong command syntax: "{opt[1]}"')
             continue
         when, cmd = opt[1].split(':', 1)
         if when not in ALLOWED_TIMES:
-            print('WARNING: unknown time: "%s"' % when)
+            print(f'WARNING: unknown time: "{when}"')
             continue
         if when == 'BEFORE_EVERY_TODB':
             for nw in ('BEFORE_MOVIES_TODB', 'BEFORE_PERSONS_TODB',
@@ -327,7 +328,7 @@ class CSVCursor(object):
         self.delimeter = delimeter
         self.quote = quote
         self.escape = escape
-        self.escaped = '%s%s' % (escape, quote)
+        self.escaped = f'{escape}{quote}'
         self.null = null
         self.quoteInteger = quoteInteger
         self._fdPool = {}
@@ -362,28 +363,22 @@ class CSVCursor(object):
                 continue
             val = str(val)
             if quote:
-                val = '%s%s%s' % (quote, val.replace(quote, escaped), quote)
+                val = f'{quote}{val.replace(quote, escaped)}{quote}'
             r[idx] = val
         # Add RawValue(s), if present.
         rinsert = r.insert
-        if tableToAddID:
-            shift = 1
-        else:
-            shift = 0
+        shift = 1 if tableToAddID else 0
         for idx, item in rawValues:
             rinsert(idx + shift, item)
         if lobFD:
             # XXX: totally tailored to suit person_info.info column!
             val3 = r[3]
             val3len = len(val3 or '') or -1
-            if val3len == -1:
-                val3off = 0
-            else:
-                val3off = lobFD.tell()
+            val3off = 0 if val3len == -1 else lobFD.tell()
             r[3] = '%s.%d.%d/' % (lobFN, val3off, val3len)
             lobFD.write(val3)
         # Build the line and add the end-of-line.
-        ret = '%s%s' % (self.delimeter.join(r), self.csvEOL)
+        ret = f'{self.delimeter.join(r)}{self.csvEOL}'
         ret = ret.encode('latin1', 'ignore')
         return ret
 
@@ -394,10 +389,7 @@ class CSVCursor(object):
         tName = sqlstr.split()[2]
         lobFD = None
         lobFN = None
-        doLOB = False
-        # XXX: ugly special case, to create the LOB file.
-        if URIlower.startswith('ibm') and tName == 'person_info':
-            doLOB = True
+        doLOB = bool(URIlower.startswith('ibm') and tName == 'person_info')
         # Open the file descriptor or get it from the pool.
         if tName in self._fdPool:
             tFD = self._fdPool[tName]
@@ -409,7 +401,7 @@ class CSVCursor(object):
             tFD = open(os.path.join(CSV_DIR, tName + self.csvExt), 'wb')
             self._fdPool[tName] = tFD
             if doLOB:
-                lobFN = '%s.lob' % tName
+                lobFN = f'{tName}.lob'
                 lobFD = open(os.path.join(CSV_DIR, lobFN), 'wb')
                 self._lobFDPool[tName] = lobFD
         buildLine = self.buildLine
@@ -427,10 +419,11 @@ class CSVCursor(object):
         vals = sqlstr[parIdx + 1:-1]
         if parIdx != 0:
             vals = sqlstr[parIdx + 1:-1]
-            for idx, item in enumerate(vals.split(', ')):
-                if item[0] in ('%', '?', ':'):
-                    continue
-                rawValues.append((idx, item))
+            rawValues.extend(
+                (idx, item)
+                for idx, item in enumerate(vals.split(', '))
+                if item[0] not in ('%', '?', ':')
+            )
         # Write these lines.
         tFD.writelines(buildLine(i, tableToAddID=tableToAddID,
                                  rawValues=rawValues, lobFD=lobFD, lobFN=lobFN)
@@ -482,19 +475,18 @@ def loadCSVFiles():
         CSV_REPL['file'] = cfName
         CSV_REPL['table'] = tName
         sqlStr = CSV_LOAD_SQL % CSV_REPL
-        print(' * LOADING CSV FILE %s...' % cfName)
+        print(f' * LOADING CSV FILE {cfName}...')
         sys.stdout.flush()
         executeCustomQueries('BEFORE_CSV_TODB')
         try:
             CURS.execute(sqlStr)
             try:
-                res = CURS.fetchall()
-                if res:
+                if res := CURS.fetchall():
                     print('LOADING OUTPUT:', res)
             except:
                 pass
         except Exception as e:
-            print('ERROR: unable to import CSV file %s: %s' % (cfName, str(e)))
+            print(f'ERROR: unable to import CSV file {cfName}: {str(e)}')
             continue
         connectObject.commit()
         executeCustomQueries('AFTER_CSV_TODB')
@@ -535,9 +527,7 @@ def _get_imdbids_method():
     imdbIDs (one of 'dbm' or 'table')."""
     if IMDBIDS_METHOD:
         return IMDBIDS_METHOD
-    if CSV_DIR:
-        return 'dbm'
-    return 'table'
+    return 'dbm' if CSV_DIR else 'table'
 
 
 def tableName(table):
@@ -586,7 +576,7 @@ def createSQLstr(table, cols, command='INSERT'):
     useful to insert a set of data in the database.
     Along with the string, also a function useful to convert parameters
     from positional to named style is returned."""
-    sqlstr = '%s INTO %s ' % (command, tableName(table))
+    sqlstr = f'{command} INTO {tableName(table)} '
     colNames = []
     values = []
     convCols = []
@@ -600,12 +590,13 @@ def createSQLstr(table, cols, command='INSERT'):
         elif PARAM_STYLE == 'qmark':
             return '?'
         elif PARAM_STYLE == 'numeric':
-            return ':%s' % index
+            return f':{index}'
         elif PARAM_STYLE == 'named':
-            return ':%s' % s
+            return f':{s}'
         elif PARAM_STYLE == 'pyformat':
-            return '%(' + s + ')s'
+            return f'%({s})s'
         return '%s'
+
     for col in cols:
         if isinstance(col, RawValue):
             colNames.append(colName(table, col.string))
@@ -620,8 +611,8 @@ def createSQLstr(table, cols, command='INSERT'):
             values.append(_valStr(col, count))
             convCols.append(col)
             count += 1
-    sqlstr += '(%s) ' % ', '.join(colNames)
-    sqlstr += 'VALUES (%s)' % ', '.join(values)
+    sqlstr += f"({', '.join(colNames)}) "
+    sqlstr += f"VALUES ({', '.join(values)})"
     if DB_NAME not in ('mysql', 'postgres') and \
             PARAM_STYLE in ('named', 'pyformat'):
         converter = _makeConvNamed(convCols)
@@ -794,7 +785,7 @@ class SourceFile(GzipFile):
             if not pwarning:
                 raise
             print('WARNING WARNING WARNING')
-            print('WARNING unable to read the "%s" file.' % filename)
+            print(f'WARNING unable to read the "{filename}" file.')
             print('WARNING The file will be skipped, and the contained')
             print('WARNING information will NOT be stored in the database.')
             print('WARNING Complete error: ', e)
@@ -870,10 +861,7 @@ def getSectionNMMV(fp):
                 yield curNMMV, joiner(curSectList)
                 curSectList[:] = []
                 curNMMV = ''
-            if line[:4] == 'MOVI':
-                curNMMV = line[6:]
-            else:
-                curNMMV = line[4:]
+            curNMMV = line[6:] if line[:4] == 'MOVI' else line[4:]
         elif not (line and line[0] == '-'):
             curSectListApp(line)
     if curSectList and curNMMV:
@@ -927,7 +915,7 @@ class _BaseCache(dict):
         self._flushing = 1
         if _recursionLevel >= MAX_RECURSION:
             print('WARNING recursion level exceded trying to flush data')
-            print('WARNING this batch of data is lost (%s).' % self.className)
+            print(f'WARNING this batch of data is lost ({self.className}).')
             self._tmpDict.clear()
             return
         if self._tmpDict:
@@ -935,19 +923,28 @@ class _BaseCache(dict):
             _after_has_run = False
             keys = {'table': self._table_name}
             try:
-                executeCustomQueries('BEFORE_%s_TODB' % self._id_for_custom_q,
-                                     _keys=keys, _timeit=False)
+                executeCustomQueries(
+                    f'BEFORE_{self._id_for_custom_q}_TODB',
+                    _keys=keys,
+                    _timeit=False,
+                )
                 self._toDB(quiet)
-                executeCustomQueries('AFTER_%s_TODB' % self._id_for_custom_q,
-                                     _keys=keys, _timeit=False)
+                executeCustomQueries(
+                    f'AFTER_{self._id_for_custom_q}_TODB',
+                    _keys=keys,
+                    _timeit=False,
+                )
                 _after_has_run = True
                 self._tmpDict.clear()
             except OperationalError as e:
                 # XXX: I'm not sure this is the right thing (and way)
                 #      to proceed.
                 if not _after_has_run:
-                    executeCustomQueries('AFTER_%s_TODB' % self._id_for_custom_q,
-                                         _keys=keys, _timeit=False)
+                    executeCustomQueries(
+                        f'AFTER_{self._id_for_custom_q}_TODB',
+                        _keys=keys,
+                        _timeit=False,
+                    )
                 # Dataset too large; split it in two and retry.
                 # XXX: new code!
                 # the same class instance (self) is used, instead of
@@ -957,27 +954,26 @@ class _BaseCache(dict):
                 firstHalf = {}
                 poptmpd = self._tmpDict.popitem
                 originalLength = len(self._tmpDict)
-                for x in range(1, 1 + originalLength // 2):
+                for _ in range(1, 1 + originalLength // 2):
                     k, v = poptmpd()
                     firstHalf[k] = v
                 self._secondHalf = self._tmpDict
                 self._tmpDict = firstHalf
-                print(' * TOO MANY DATA (%s items in %s), recursion: %s' %
-                      (originalLength,
-                       self.className,
-                       _recursionLevel))
-                print('   * SPLITTING (run 1 of 2), recursion: %s' %
-                      _recursionLevel)
+                print(
+                    f' * TOO MANY DATA ({originalLength} items in {self.className}), recursion: {_recursionLevel}'
+                )
+                print(f'   * SPLITTING (run 1 of 2), recursion: {_recursionLevel}')
                 self.flush(quiet=quiet, _recursionLevel=_recursionLevel)
                 self._tmpDict = self._secondHalf
-                print('   * SPLITTING (run 2 of 2), recursion: %s' %
-                      _recursionLevel)
+                print(f'   * SPLITTING (run 2 of 2), recursion: {_recursionLevel}')
                 self.flush(quiet=quiet, _recursionLevel=_recursionLevel)
                 self._tmpDict.clear()
             except Exception as e:
                 if isinstance(e, KeyboardInterrupt):
                     raise
-                print('WARNING: %s; unknown exception caught committing the data' % self.className)
+                print(
+                    f'WARNING: {self.className}; unknown exception caught committing the data'
+                )
                 print('WARNING: to the database; report this as a bug, since')
                 print('WARNING: many data (%d items) were lost: %s' %
                       (len(self._tmpDict), e))
@@ -1013,20 +1009,16 @@ class _BaseCache(dict):
     def addUnique(self, key, miscData=None):
         """Insert a new key and return its value; if the key is already
         in the dictionary, its previous  value is returned."""
-        if key in self:
-            return self[key]
-        else:
-            return self.add(key, miscData)
+        return self[key] if key in self else self.add(key, miscData)
 
 
 def fetchsome(curs, size=20000):
     """Yes, I've read the Python Cookbook! :-)"""
     while 1:
-        res = curs.fetchmany(size)
-        if not res:
+        if res := curs.fetchmany(size):
+            yield from res
+        else:
             break
-        for r in res:
-            yield r
 
 
 class MoviesCache(_BaseCache):
@@ -1047,7 +1039,7 @@ class MoviesCache(_BaseCache):
                                                            'md5sum'))
 
     def populate(self):
-        print(' * POPULATING %s...' % self.className)
+        print(f' * POPULATING {self.className}...')
         titleTbl = tableName(Title)
         movieidCol = colName(Title, 'id')
         titleCol = colName(Title, 'title')
@@ -1057,9 +1049,7 @@ class MoviesCache(_BaseCache):
         episodeofidCol = colName(Title, 'episodeOfID')
         seasonNrCol = colName(Title, 'seasonNr')
         episodeNrCol = colName(Title, 'episodeNr')
-        sqlPop = 'SELECT %s, %s, %s, %s, %s, %s, %s, %s FROM %s;' % \
-            (movieidCol, titleCol, kindidCol, yearCol, imdbindexCol,
-                episodeofidCol, seasonNrCol, episodeNrCol, titleTbl)
+        sqlPop = f'SELECT {movieidCol}, {titleCol}, {kindidCol}, {yearCol}, {imdbindexCol}, {episodeofidCol}, {seasonNrCol}, {episodeNrCol} FROM {titleTbl};'
         CURS.execute(sqlPop)
         _oldcacheValues = Title.sqlmeta.cacheValues
         Title.sqlmeta.cacheValues = False
@@ -1092,7 +1082,7 @@ class MoviesCache(_BaseCache):
 
     def _toDB(self, quiet=0):
         if not quiet:
-            print(' * FLUSHING %s...' % self.className)
+            print(f' * FLUSHING {self.className}...')
             sys.stdout.flush()
         l = []
         lapp = l.append
@@ -1101,7 +1091,7 @@ class MoviesCache(_BaseCache):
                 t = analyze_title(k)
             except IMDbParserError:
                 if k and k.strip():
-                    print('WARNING %s._toDB() invalid title:' % self.className, end=' ')
+                    print(f'WARNING {self.className}._toDB() invalid title:', end=' ')
                     print(_(k))
                 continue
             tget = t.get
@@ -1139,10 +1129,7 @@ class MoviesCache(_BaseCache):
         in the dictionary, its previous  value is returned."""
         if key.endswith('{{SUSPENDED}}'):
             return None
-        if key in self:
-            return self[key]
-        else:
-            return self.add(key, miscData)
+        return self[key] if key in self else self.add(key, miscData)
 
 
 class PersonsCache(_BaseCache):
@@ -1166,8 +1153,9 @@ class PersonsCache(_BaseCache):
         personidCol = colName(Name, 'id')
         nameCol = colName(Name, 'name')
         imdbindexCol = colName(Name, 'imdbIndex')
-        CURS.execute('SELECT %s, %s, %s FROM %s;' % (personidCol, nameCol,
-                                                     imdbindexCol, nameTbl))
+        CURS.execute(
+            f'SELECT {personidCol}, {nameCol}, {imdbindexCol} FROM {nameTbl};'
+        )
         _oldcacheValues = Name.sqlmeta.cacheValues
         Name.sqlmeta.cacheValues = False
         for x in fetchsome(CURS, self.flushEvery):
@@ -1225,8 +1213,9 @@ class CharactersCache(_BaseCache):
         personidCol = colName(CharName, 'id')
         nameCol = colName(CharName, 'name')
         imdbindexCol = colName(CharName, 'imdbIndex')
-        CURS.execute('SELECT %s, %s, %s FROM %s;' % (personidCol, nameCol,
-                                                     imdbindexCol, nameTbl))
+        CURS.execute(
+            f'SELECT {personidCol}, {nameCol}, {imdbindexCol} FROM {nameTbl};'
+        )
         _oldcacheValues = CharName.sqlmeta.cacheValues
         CharName.sqlmeta.cacheValues = False
         for x in fetchsome(CURS, self.flushEvery):
@@ -1283,8 +1272,9 @@ class CompaniesCache(_BaseCache):
         companyidCol = colName(CompanyName, 'id')
         nameCol = colName(CompanyName, 'name')
         countryCodeCol = colName(CompanyName, 'countryCode')
-        CURS.execute('SELECT %s, %s, %s FROM %s;' % (companyidCol, nameCol,
-                                                     countryCodeCol, nameTbl))
+        CURS.execute(
+            f'SELECT {companyidCol}, {nameCol}, {countryCodeCol} FROM {nameTbl};'
+        )
         _oldcacheValues = CompanyName.sqlmeta.cacheValues
         CompanyName.sqlmeta.cacheValues = False
         for x in fetchsome(CURS, self.flushEvery):
@@ -1343,8 +1333,7 @@ class KeywordsCache(_BaseCache):
         nameTbl = tableName(CompanyName)
         keywordidCol = colName(Keyword, 'id')
         keyCol = colName(Keyword, 'name')
-        CURS.execute('SELECT %s, %s FROM %s;' % (keywordidCol, keyCol,
-                                                 nameTbl))
+        CURS.execute(f'SELECT {keywordidCol}, {keyCol} FROM {nameTbl};')
         _oldcacheValues = Keyword.sqlmeta.cacheValues
         Keyword.sqlmeta.cacheValues = False
         for x in fetchsome(CURS, self.flushEvery):
@@ -1451,7 +1440,7 @@ class SQLData(dict):
             newdata.flushEvery = newflushEvery
             popitem = self.popitem
             dsi = dict.__setitem__
-            for x in range(len(self) // 2):
+            for _ in range(len(self) // 2):
                 k, v = popitem()
                 dsi(newdata, k, v)
             newdata.flush(_resetRecursion=0)
@@ -1495,7 +1484,7 @@ def unpack(line, headers, sep='\t'):
         try:
             name = headers[index]
         except IndexError:
-            name = 'item%s' % index
+            name = f'item{index}'
         r[name] = item.strip()
     return r
 
@@ -1508,15 +1497,9 @@ def _parseMinusList(fdata):
         if line and line[:2] == '- ':
             if tmplist:
                 rlist.append(' '.join(tmplist))
-            l = line[2:].strip()
-            if l:
-                tmplist[:] = [l]
-            else:
-                tmplist[:] = []
-        else:
-            l = line.strip()
-            if l:
-                tmplist.append(l)
+            tmplist[:] = [l] if (l := line[2:].strip()) else []
+        elif l := line.strip():
+            tmplist.append(l)
     if tmplist:
         rlist.append(' '.join(tmplist))
     return rlist
@@ -1562,7 +1545,7 @@ def readMovieList():
             continue
         if count % 10000 == 0:
             print('SCANNING movies:', _(title), end=' ')
-            print('(movieID: %s)' % mid)
+            print(f'(movieID: {mid})')
         count += 1
     CACHE_MID.flush()
     CACHE_MID.movieYear.clear()

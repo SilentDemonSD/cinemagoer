@@ -136,7 +136,7 @@ def runRebuildmo():
     try:
         check_call([sys.executable, "rebuildmo.py"])
     except CalledProcessError as e:
-        print('ERROR: unable to rebuild .mo files; caught exception %s' % e)
+        print(f'ERROR: unable to rebuild .mo files; caught exception {e}')
 
 
 def hasCommand():
@@ -148,10 +148,7 @@ def hasCommand():
         return False
     if 'clean' in args:
         return False
-    for arg in args:
-        if arg and not arg.startswith('-'):
-            return True
-    return False
+    return any(arg and not arg.startswith('-') for arg in args)
 
 
 try:

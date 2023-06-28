@@ -8,6 +8,7 @@ Usage: get_first_company "company name"
 Search for the given name and print the best matching result.
 """
 
+
 import sys
 
 # Import the Cinemagoer package.
@@ -20,7 +21,7 @@ except ImportError:
 
 if len(sys.argv) != 2:
     print('Only one argument is required:')
-    print('  %s "company name"' % sys.argv[0])
+    print(f'  {sys.argv[0]} "company name"')
     sys.exit(2)
 
 name = sys.argv[1]
@@ -37,11 +38,11 @@ except imdb.IMDbError as e:
     sys.exit(3)
 
 if not results:
-    print('No matches for "%s", sorry.' % name)
+    print(f'No matches for "{name}", sorry.')
     sys.exit(0)
 
 # Print only the first result.
-print('    Best match for "%s"' % name)
+print(f'    Best match for "{name}"')
 
 # This is a company instance.
 company = results[0]

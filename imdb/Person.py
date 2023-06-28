@@ -206,14 +206,15 @@ class Person(_Container):
         if not isinstance(other, self.__class__):
             return False
         if 'name' in self.data and \
-                'name' in other.data and \
-                build_name(self.data, canonical=True) == \
-                build_name(other.data, canonical=True):
+                    'name' in other.data and \
+                    build_name(self.data, canonical=True) == \
+                    build_name(other.data, canonical=True):
             return True
-        if self.accessSystem == other.accessSystem and \
-                self.personID and self.personID == other.personID:
-            return True
-        return False
+        return bool(
+            self.accessSystem == other.accessSystem
+            and self.personID
+            and self.personID == other.personID
+        )
 
     isSamePerson = isSameName   # XXX: just for backward compatiblity.
 
@@ -235,9 +236,7 @@ class Person(_Container):
     def __repr__(self):
         """String representation of a Person object."""
         # XXX: add also currentRole and notes, if present?
-        return '<Person id:%s[%s] name:_%s_>' % (
-            self.personID, self.accessSystem, self.get('long imdb name')
-        )
+        return f"<Person id:{self.personID}[{self.accessSystem}] name:_{self.get('long imdb name')}_>"
 
     def __str__(self):
         """Simply print the short name."""
@@ -248,29 +247,22 @@ class Person(_Container):
         if not self:
             return ''
         s = 'Person\n=====\nName: %s\n' % self.get('long imdb canonical name', '')
-        bdate = self.get('birth date')
-        if bdate:
-            s += 'Birth date: %s' % bdate
-            bnotes = self.get('birth notes')
-            if bnotes:
-                s += ' (%s)' % bnotes
+        if bdate := self.get('birth date'):
+            s += f'Birth date: {bdate}'
+            if bnotes := self.get('birth notes'):
+                s += f' ({bnotes})'
             s += '.\n'
-        ddate = self.get('death date')
-        if ddate:
-            s += 'Death date: %s' % ddate
-            dnotes = self.get('death notes')
-            if dnotes:
-                s += ' (%s)' % dnotes
+        if ddate := self.get('death date'):
+            s += f'Death date: {ddate}'
+            if dnotes := self.get('death notes'):
+                s += f' ({dnotes})'
             s += '.\n'
-        bio = self.get('mini biography')
-        if bio:
+        if bio := self.get('mini biography'):
             s += 'Biography: %s\n' % bio[0]
-        director = self.get('director')
-        if director:
+        if director := self.get('director'):
             d_list = [x.get('long imdb canonical title', '') for x in director[:3]]
             s += 'Last movies directed: %s.\n' % '; '.join(d_list)
-        act = self.get('actor') or self.get('actress')
-        if act:
+        if act := self.get('actor') or self.get('actress'):
             a_list = [x.get('long imdb canonical title', '') for x in act[:5]]
             s += 'Last movies acted: %s.\n' % '; '.join(a_list)
         return s

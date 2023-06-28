@@ -53,10 +53,7 @@ _aux_logger = logger.getChild('aux')
 def titleVariations(title, fromPtdf=False):
     """Build title variations useful for searches; if fromPtdf is true,
     the input is assumed to be in the plain text data files format."""
-    if fromPtdf:
-        title1 = ''
-    else:
-        title1 = title
+    title1 = '' if fromPtdf else title
     title2 = title3 = ''
     if fromPtdf or re_year_index.search(title):
         # If it appears to have a (year[/imdbIndex]) indication,
@@ -66,10 +63,7 @@ def titleVariations(title, fromPtdf=False):
         title1 = titldict['title']
         if titldict['kind'] != 'episode':
             # title3: the long imdb canonical name.
-            if fromPtdf:
-                title3 = title
-            else:
-                title3 = build_title(titldict, canonical=1, ptdf=1)
+            title3 = title if fromPtdf else build_title(titldict, canonical=1, ptdf=1)
         else:
             title1 = normalizeTitle(title1)
             title3 = build_title(titldict, canonical=1, ptdf=1)
@@ -125,10 +119,7 @@ def ratcliff(s1, s2, sm):
     STRING_MAXLENDIFFER = 0.7
     s1len = len(s1)
     s2len = len(s2)
-    if s1len < s2len:
-        threshold = float(s1len) / s2len
-    else:
-        threshold = float(s2len) / s1len
+    threshold = float(s1len) / s2len if s1len < s2len else float(s2len) / s1len
     if threshold < STRING_MAXLENDIFFER:
         return 0.0
     sm.set_seq2(s2.lower())
@@ -147,10 +138,9 @@ def merge_roles(mop):
                     m_isinnewlist = True
                     m_indexinnewlist = i
                     break
-        else:
-            if m in new_list:
-                m_isinnewlist = True
-                m_indexinnewlist = new_list.index(m)
+        elif m in new_list:
+            m_isinnewlist = True
+            m_indexinnewlist = new_list.index(m)
         if m_isinnewlist:
             keep_this = new_list[m_indexinnewlist]
             if not isinstance(keep_this.currentRole, list):
@@ -165,10 +155,7 @@ def scan_names(name_list, name1, name2, name3, results=0, ro_thresold=None,
                _scan_character=False):
     """Scan a list of names, searching for best matches against
     the given variations."""
-    if ro_thresold is not None:
-        RO_THRESHOLD = ro_thresold
-    else:
-        RO_THRESHOLD = 0.6
+    RO_THRESHOLD = ro_thresold if ro_thresold is not None else 0.6
     sm1 = SequenceMatcher()
     sm2 = SequenceMatcher()
     sm3 = SequenceMatcher()
@@ -187,7 +174,7 @@ def scan_names(name_list, name1, name2, name3, results=0, ro_thresold=None,
             nils = nil.split(', ', 1)
             surname = nils[0]
             if len(nils) == 2:
-                namesurname = '%s %s' % (nils[1], surname)
+                namesurname = f'{nils[1]} {surname}'
         else:
             nils = nil.split(' ', 1)
             surname = nils[-1]
@@ -208,13 +195,9 @@ def scan_names(name_list, name1, name2, name3, results=0, ro_thresold=None,
                                    build_name(n_data, canonical=1), sm3) + 0.1)
         ratio = max(ratios)
         if ratio >= RO_THRESHOLD:
-            if i in resd:
-                if ratio > resd[i][0]:
-                    resd[i] = (ratio, (i, n_data))
-            else:
+            if i in resd and ratio > resd[i][0] or i not in resd:
                 resd[i] = (ratio, (i, n_data))
-    res = list(resd.values())
-    res.sort()
+    res = sorted(resd.values())
     res.reverse()
     if results > 0:
         res[:] = res[:results]
@@ -225,10 +208,7 @@ def scan_titles(titles_list, title1, title2, title3, results=0,
                 searchingEpisode=0, onlyEpisodes=0, ro_thresold=None):
     """Scan a list of titles, searching for best matches against
     the given variations."""
-    if ro_thresold is not None:
-        RO_THRESHOLD = ro_thresold
-    else:
-        RO_THRESHOLD = 0.6
+    RO_THRESHOLD = ro_thresold if ro_thresold is not None else 0.6
     sm1 = SequenceMatcher()
     sm2 = SequenceMatcher()
     sm3 = SequenceMatcher()
@@ -238,9 +218,7 @@ def scan_titles(titles_list, title1, title2, title3, results=0,
         sm3.set_seq1(title3.lower())
         if title3[-1] == '}':
             searchingEpisode = 1
-    hasArt = 0
-    if title2 != title1:
-        hasArt = 1
+    hasArt = 1 if title2 != title1 else 0
     resd = {}
     for i, t_data in titles_list:
         if onlyEpisodes:
@@ -257,10 +235,12 @@ def scan_titles(titles_list, title1, title2, title3, results=0,
             if ratio >= RO_THRESHOLD:
                 resd[i] = (ratio, (i, t_data))
             continue
-        if searchingEpisode:
-            if t_data.get('kind') != 'episode':
-                continue
-        elif t_data.get('kind') == 'episode':
+        if (
+            searchingEpisode
+            and t_data.get('kind') != 'episode'
+            or not searchingEpisode
+            and t_data.get('kind') == 'episode'
+        ):
             continue
         til = t_data['title']
         # Distance with the canonical title (with or without article).
@@ -290,13 +270,9 @@ def scan_titles(titles_list, title1, title2, title3, results=0,
                                    build_title(t_data, canonical=1, ptdf=1), sm3) + 0.1)
         ratio = max(ratios)
         if ratio >= RO_THRESHOLD:
-            if i in resd:
-                if ratio > resd[i][0]:
-                    resd[i] = (ratio, (i, t_data))
-            else:
+            if i in resd and ratio > resd[i][0] or i not in resd:
                 resd[i] = (ratio, (i, t_data))
-    res = list(resd.values())
-    res.sort()
+    res = sorted(resd.values())
     res.reverse()
     if results > 0:
         res[:] = res[:results]
@@ -307,10 +283,7 @@ def scan_company_names(name_list, name1, results=0, ro_thresold=None):
     """Scan a list of company names, searching for best matches against
     the given name.  Notice that this function takes a list of
     strings, and not a list of dictionaries."""
-    if ro_thresold is not None:
-        RO_THRESHOLD = ro_thresold
-    else:
-        RO_THRESHOLD = 0.6
+    RO_THRESHOLD = ro_thresold if ro_thresold is not None else 0.6
     sm1 = SequenceMatcher()
     sm1.set_seq1(name1.lower())
     resd = {}
@@ -326,14 +299,10 @@ def scan_company_names(name_list, name1, results=0, ro_thresold=None):
         # Distance with the company name.
         ratio = ratcliff(name1, n, sm1) + var
         if ratio >= RO_THRESHOLD:
-            if i in resd:
-                if ratio > resd[i][0]:
-                    resd[i] = (ratio,
-                               (i, analyze_company_name(o_name)))
-            else:
-                resd[i] = (ratio, (i, analyze_company_name(o_name)))
-    res = list(resd.values())
-    res.sort()
+            if i in resd and ratio > resd[i][0] or i not in resd:
+                resd[i] = (ratio,
+                           (i, analyze_company_name(o_name)))
+    res = sorted(resd.values())
     res.reverse()
     if results > 0:
         res[:] = res[:results]
@@ -368,9 +337,7 @@ def _sortKeywords(keyword, kwds):
     sm = SequenceMatcher()
     sm.set_seq1(keyword.lower())
     ratios = [(ratcliff(keyword, k, sm), k) for k in kwds]
-    checkContained = False
-    if len(keyword) > 4:
-        checkContained = True
+    checkContained = len(keyword) > 4
     for idx, data in enumerate(ratios):
         ratio, key = data
         if key.startswith(keyword):
@@ -388,9 +355,7 @@ def filterSimilarKeywords(keyword, kwdsIterator):
     kwdSndx = soundex(keyword)
     matches = []
     matchesappend = matches.append
-    checkContained = False
-    if len(keyword) > 4:
-        checkContained = True
+    checkContained = len(keyword) > 4
     for movieID, key in kwdsIterator:
         if key in seenDict:
             continue
@@ -440,8 +405,7 @@ def _groupListBy(l, index):
     tmpd = {}
     for item in l:
         tmpd.setdefault(item[index], []).append(item)
-    res = list(tmpd.values())
-    return res
+    return list(tmpd.values())
 
 
 def sub_dict(d, keys):
@@ -456,16 +420,12 @@ def get_movie_data(movieID, kindDict, fromAka=0, _table=None):
     if _table is not None:
         Table = _table
     else:
-        if not fromAka:
-            Table = Title
-        else:
-            Table = AkaTitle
+        Table = Title if not fromAka else AkaTitle
     try:
         m = Table.get(movieID)
     except Exception as e:
         _aux_logger.warn('Unable to fetch information for movieID %s: %s', movieID, e)
-        mdict = {}
-        return mdict
+        return {}
     mdict = {'title': m.title, 'kind': kindDict[m.kindID],
              'year': m.productionYear, 'imdbIndex': m.imdbIndex,
              'season': m.seasonNr, 'episode': m.episodeNr}
@@ -501,8 +461,7 @@ def get_movie_data(movieID, kindDict, fromAka=0, _table=None):
         mdict['episode of'] = Movie(data=ser_dict, movieID=episodeOfID,
                                     accessSystem='sql')
         if fromAka:
-            ser_note = AkaTitle.get(episodeOfID).note
-            if ser_note:
+            if ser_note := AkaTitle.get(episodeOfID).note:
                 mdict['episode of'].notes = ser_note
     return mdict
 
@@ -526,25 +485,19 @@ def getSingleInfo(table, movieID, infoType, notAList=False):
     retList = []
     for r in res:
         info = r.info
-        note = r.note
-        if note:
-            info += '::%s' % note
+        if note := r.note:
+            info += f'::{note}'
         retList.append(info)
     if not retList:
         return {}
-    if not notAList:
-        return {infoType: retList}
-    else:
-        return {infoType: retList[0]}
+    return {infoType: retList} if not notAList else {infoType: retList[0]}
 
 
 def _cmpTop(a, b, what='top 250 rank'):
     """Compare function used to sort top 250/bottom 10 rank."""
     av = int(a[1].get(what))
     bv = int(b[1].get(what))
-    if av == bv:
-        return 0
-    return (-1, 1)[av > bv]
+    return 0 if av == bv else (-1, 1)[av > bv]
 
 
 def _cmpBottom(a, b):
@@ -564,8 +517,8 @@ class IMDbSqlAccessSystem(IMDbBase):
         DB_TABLES = []
         try:
             from .alchemyadapter import getDBTables, NotFoundError, \
-                setConnection, AND, OR, IN, \
-                                        ISNULL, CONTAINSSTRING, toUTF8
+                    setConnection, AND, OR, IN, \
+                                            ISNULL, CONTAINSSTRING, toUTF8
             # XXX: look ma'... black magic!  It's used to make
             #      TableClasses and some functions accessible
             #      through the whole module.
@@ -586,8 +539,8 @@ class IMDbSqlAccessSystem(IMDbBase):
             self._connection = setConnection(uri, DB_TABLES)
         except AssertionError as e:
             raise IMDbDataAccessError(
-                'unable to connect to the database server; ' +
-                    'complete message: "%s"' % str(e))
+                f'unable to connect to the database server; complete message: "{str(e)}"'
+            )
         self.Error = self._connection.module.Error
         # Maps some IDs to the corresponding strings.
         self._kind = {}
@@ -628,7 +581,7 @@ class IMDbSqlAccessSystem(IMDbBase):
             if not vinfo.startswith('LD '):
                 continue
             self._moviesubs[vinfo] = ('laserdisc', vinfo[3:])
-        self._moviesubs.update(_litd)
+        self._moviesubs |= _litd
         self._moviesubs.update(_busd)
         self.do_adult_search(adultSearch)
 
@@ -669,7 +622,7 @@ class IMDbSqlAccessSystem(IMDbBase):
                 rname2 = normalizeName(a_name.get('name', ''))
                 if rname2 and rname2 != rname:
                     nrefs[rname2] = p
-                if name != rname and name != rname2:
+                if name not in [rname, rname2]:
                     nrefs[name] = p
         elif isinstance(o, (list, tuple)):
             for item in o:
@@ -723,10 +676,7 @@ class IMDbSqlAccessSystem(IMDbBase):
         if val is None:
             return ISNULL(col)
         else:
-            if isinstance(val, int):
-                return col == val
-            else:
-                return col == self.toUTF8(val)
+            return col == val if isinstance(val, int) else col == self.toUTF8(val)
 
     def _getTitleID(self, title):
         """Given a long imdb canonical title, returns a movieID or
@@ -735,14 +685,21 @@ class IMDbSqlAccessSystem(IMDbBase):
         condition = None
         if td['kind'] == 'episode':
             epof = td['episode of']
-            seriesID = [s.id for s in Title.select(
-                        AND(Title.q.title == self.toUTF8(epof['title']),
-                            self._buildNULLCondition(Title.q.imdbIndex,
-                                                     epof.get('imdbIndex')),
-                            Title.q.kindID == self._kindRev[epof['kind']],
-                            self._buildNULLCondition(Title.q.productionYear,
-                                                     epof.get('year'))))]
-            if seriesID:
+            if seriesID := [
+                s.id
+                for s in Title.select(
+                    AND(
+                        Title.q.title == self.toUTF8(epof['title']),
+                        self._buildNULLCondition(
+                            Title.q.imdbIndex, epof.get('imdbIndex')
+                        ),
+                        Title.q.kindID == self._kindRev[epof['kind']],
+                        self._buildNULLCondition(
+                            Title.q.productionYear, epof.get('year')
+                        ),
+                    )
+                )
+            ]:
                 condition = AND(IN(Title.q.episodeOfID, seriesID),
                                 Title.q.title == self.toUTF8(td['title']),
                                 self._buildNULLCondition(Title.q.imdbIndex,
@@ -923,9 +880,8 @@ class IMDbSqlAccessSystem(IMDbBase):
             _episodes = False
         s_title_split = s_title.split(', ')
         if len(s_title_split) > 1 and \
-                s_title_split[-1].lower() in _unicodeArticles:
-            s_title_rebuilt = ', '.join(s_title_split[:-1])
-            if s_title_rebuilt:
+                    s_title_split[-1].lower() in _unicodeArticles:
+            if s_title_rebuilt := ', '.join(s_title_split[:-1]):
                 s_title = s_title_rebuilt
 
         soundexCode = soundex(s_title)
@@ -947,8 +903,7 @@ class IMDbSqlAccessSystem(IMDbBase):
             if serRes < 3 or serRes > 10:
                 serRes = 10
             searchSeries = self._search_movie(series_title, serRes)
-            seriesIDs = [result[0] for result in searchSeries]
-            if seriesIDs:
+            if seriesIDs := [result[0] for result in searchSeries]:
                 condition = AND(Title.q.phoneticCode == soundexCode,
                                 IN(Title.q.episodeOfID, seriesIDs),
                                 Title.q.kindID == self._kindRev['episode'])
@@ -985,8 +940,7 @@ class IMDbSqlAccessSystem(IMDbBase):
                   for q in AkaTitle.select(conditionAka)]
             qr += q2
         except NotFoundError as e:
-            raise IMDbDataAccessError(
-                'unable to search the database: "%s"' % str(e))
+            raise IMDbDataAccessError(f'unable to search the database: "{str(e)}"')
 
         resultsST = results * 3
         res = scan_titles(qr, title1, title2, title3, resultsST,

@@ -97,7 +97,7 @@ class IMDbS3AccessSystem(IMDbBase):
         data = self._rename('title_basics', dict(movie))
         data['year'] = str(data.get('startYear') or '')
         if 'endYear' in data and data['endYear']:
-            data['year'] += '-%s' % data['endYear']
+            data['year'] += f"-{data['endYear']}"
         genres = data.get('genres') or ''
         data['genres'] = split_array(genres.lower())
         if 'runtimes' in data and data['runtimes']:

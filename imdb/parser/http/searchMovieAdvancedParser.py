@@ -55,7 +55,7 @@ def _parse_secondary_info(info):
     if match.group(4):
         kind = 'tv series'
     if match.group(6):
-        parsed['series years'] = match.group(3) + "-" + match.group(6)
+        parsed['series years'] = f"{match.group(3)}-{match.group(6)}"
     if match.group(8):
         kind = match.group(8).lower()
     if match.group(10):  # Added to support case of imdbIndex but no year
@@ -215,8 +215,7 @@ class DOMHTMLSearchMovieAdvancedParser(DOMParserBase):
             if episode is not None:
                 series = build_movie(movie.get('title'), movieID=analyze_imdbid(movie['link']))
                 series['kind'] = 'tv series'
-                series_secondary = movie.get('secondary_info')
-                if series_secondary:
+                if series_secondary := movie.get('secondary_info'):
                     series.update(_parse_secondary_info(series_secondary))
 
                 movie['episode of'] = series

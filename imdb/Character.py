@@ -107,9 +107,8 @@ class Character(_Container):
 
     def _getitem(self, key):
         """Handle special keys."""
-        # XXX: can a character have an imdbIndex?
-        if 'name' in self.data:
-            if key == 'long imdb name':
+        if key == 'long imdb name':
+            if 'name' in self.data:
                 return build_name(self.data)
         return None
 
@@ -145,13 +144,13 @@ class Character(_Container):
         if not isinstance(other, self.__class__):
             return False
         if 'name' in self.data and 'name' in other.data and \
-                build_name(self.data, canonical=False) == build_name(other.data, canonical=False):
+                    build_name(self.data, canonical=False) == build_name(other.data, canonical=False):
             return True
-        if self.accessSystem == other.accessSystem and \
-                self.characterID is not None and \
-                self.characterID == other.characterID:
-            return True
-        return False
+        return (
+            self.accessSystem == other.accessSystem
+            and self.characterID is not None
+            and self.characterID == other.characterID
+        )
     isSameCharacter = isSameName
 
     def __deepcopy__(self, memo):
@@ -169,9 +168,7 @@ class Character(_Container):
 
     def __repr__(self):
         """String representation of a Character object."""
-        return '<Character id:%s[%s] name:_%s_>' % (
-            self.characterID, self.accessSystem, self.get('name')
-        )
+        return f"<Character id:{self.characterID}[{self.accessSystem}] name:_{self.get('name')}_>"
 
     def __str__(self):
         """Simply print the short name."""
@@ -182,11 +179,9 @@ class Character(_Container):
         if not self:
             return ''
         s = 'Character\n=====\nName: %s\n' % self.get('name', '')
-        bio = self.get('biography')
-        if bio:
+        if bio := self.get('biography'):
             s += 'Biography: %s\n' % bio[0]
-        filmo = self.get('filmography')
-        if filmo:
+        if filmo := self.get('filmography'):
             a_list = [x.get('long imdb canonical title', '') for x in filmo[:5]]
             s += 'Last movies with this character: %s.\n' % '; '.join(a_list)
         return s

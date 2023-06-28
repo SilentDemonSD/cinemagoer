@@ -161,7 +161,7 @@ class DOMHTMLMaindetailsParser(DOMParserBase):
             if key == 'birth place':
                 data['birth notes'] = data[key]
                 del data[key]
-            if key == 'death place':
+            elif key == 'death place':
                 data['death notes'] = data[key]
                 del data[key]
         return data
@@ -247,7 +247,7 @@ class DOMHTMLFilmographyParser(DOMParserBase):
         for job in (data.get('filmography') or []):
             if not isinstance(job, dict) or not job:
                 continue
-            filmo.update(job)
+            filmo |= job
         if filmo:
             data['filmography'] = filmo
         return data
@@ -534,9 +534,7 @@ class DOMHTMLPersonGenresParser(DOMParserBase):
     ]
 
     def postprocess_data(self, data):
-        if len(data) == 0:
-            return {}
-        return {self.kind: data}
+        return {} if len(data) == 0 else {self.kind: data}
 
 
 def _process_person_award(x):

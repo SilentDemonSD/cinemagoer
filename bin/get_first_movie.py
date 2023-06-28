@@ -8,6 +8,7 @@ Usage: get_first_movie "movie title"
 Search for the given title and print the best matching result.
 """
 
+
 import sys
 
 # Import the Cinemagoer package.
@@ -20,7 +21,7 @@ except ImportError:
 
 if len(sys.argv) != 2:
     print('Only one argument is required:')
-    print('  %s "movie title"' % sys.argv[0])
+    print(f'  {sys.argv[0]} "movie title"')
     sys.exit(2)
 
 title = sys.argv[1]
@@ -37,11 +38,11 @@ except imdb.IMDbError as e:
     sys.exit(3)
 
 if not results:
-    print('No matches for "%s", sorry.' % title)
+    print(f'No matches for "{title}", sorry.')
     sys.exit(0)
 
 # Print only the first result.
-print('    Best match for "%s"' % title)
+print(f'    Best match for "{title}"')
 
 # This is a Movie instance.
 movie = results[0]

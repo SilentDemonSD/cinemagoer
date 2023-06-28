@@ -10,6 +10,7 @@ for "Columbia Pictures [us]", using 'http' or 'mobile').
 Notice that company_id, using 'sql', are not the same IDs used on the web.
 """
 
+
 import sys
 
 # Import the Cinemagoer package.
@@ -22,7 +23,7 @@ except ImportError:
 
 if len(sys.argv) != 2:
     print('Only one argument is required:')
-    print('  %s "company_id"' % sys.argv[0])
+    print(f'  {sys.argv[0]} "company_id"')
     sys.exit(2)
 
 company_id = sys.argv[1]

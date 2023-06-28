@@ -8,6 +8,7 @@ Usage: get_movie_list.py ls091843609
 Parse the list and print the results.
 """
 
+
 import sys
 
 # Import the Cinemagoer package.
@@ -20,7 +21,7 @@ except ImportError:
 
 if len(sys.argv) != 2:
     print('Only one argument is required:')
-    print('  %s "movie list id"' % sys.argv[0])
+    print(f'  {sys.argv[0]} "movie list id"')
     sys.exit(2)
 
 listId = sys.argv[1]
