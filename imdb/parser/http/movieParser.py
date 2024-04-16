@@ -275,6 +275,11 @@ class DOMHTMLMovieParser(DOMParserBase):
                            transform=analyze_og_title)
         ),
         Rule(
+            key='alternative kind',
+            extractor=Path('//h3[@itemprop="name"]/following-sibling::ul/li[last()]/text()',
+                           transform=lambda x: KIND_MAP.get(x.strip().lower(), x.strip().lower()))
+        ),
+        Rule(
             key='original title',
             extractor=Path('//div[@class="titlereference-header"]//span[@class="titlereference-original-title-label"]/preceding-sibling::text()',  # noqa: E501
                            transform=lambda x: re_space.sub(' ', x).strip())
@@ -289,6 +294,13 @@ class DOMHTMLMovieParser(DOMParserBase):
             key='localized title',
             extractor=Path('//meta[@name="title"]/@content',
                            transform=lambda x: analyze_og_title(x).get('title'))
+        ),
+        Rule(
+            key="stars",
+            extractor=Path(
+                foreach='//div[@class="titlereference-overview-section" and '
+                        'contains(text(), "Stars:")]/ul/li[1]/a',
+                path='./text()')
         ),
 
         # parser for misc sections like 'casting department', 'stunts', ...
@@ -858,6 +870,9 @@ class DOMHTMLMovieParser(DOMParserBase):
             del data['companies']
         if 'box office' in data:
             data['box office'] = dict(data['box office'])
+        alt_kind = data.get('alternative kind')
+        if alt_kind is not None:
+            data['kind'] = alt_kind
         return data
 
 
@@ -1200,20 +1215,8 @@ class DOMHTMLTriviaParser(DOMParserBase):
     _defGetRefs = True
 
     rules = [
-        Rule(
-            key='trivia',
-            extractor=Path(
-                foreach='//div[@class="sodatext"]',
-                path='.//text()',
-                transform=transformers.strip
-            )
-        )
+        Rule(key="trivia", extractor=Path(foreach='//div[@class="ipc-html-content-inner-div"]', path='.//text()'))
     ]
-
-    def preprocess_dom(self, dom):
-        # Remove "link this quote" links.
-        preprocessors.remove(dom, '//span[@class="linksoda"]')
-        return dom
 
 
 class DOMHTMLSoundtrackParser(DOMParserBase):
@@ -1647,11 +1650,12 @@ class DOMHTMLCriticReviewsParser(DOMParserBase):
     rules = [
         Rule(
             key='metascore',
-            extractor=Path('//div[@class="metascore_wrap"]/div/span//text()')
+            extractor=Path('//*[@data-testid="critic-reviews-title"]/div/text()',
+                           transform=lambda x: int(x.strip()))
         ),
         Rule(
             key='metacritic url',
-            extractor=Path('//div[@class="article"]/div[@class="see-more"]/a/@href')
+            extractor=Path('//*[@data-testid="critic-reviews-title"]/div[2]/div[2]/a/@href')
         )
     ]
 
@@ -1852,7 +1856,7 @@ class DOMHTMLOfficialsitesParser(DOMParserBase):
     """
     rules = [
         Rule(
-            foreach='//div[contains(@class, "ipc-page-grid__item")]/section[contains(@class, "ipc-page-section--base")]',
+            foreach='//div[contains(@class, "ipc-page-grid__item")]/section[contains(@class, "ipc-page-section--base")]',  # noqa: E501
             key=Path(
                 './/h3//text()',
                 transform=lambda x: x.strip().lower()
@@ -1891,7 +1895,7 @@ class DOMHTMLConnectionsParser(DOMParserBase):
     """
     rules = [
         Rule(
-            foreach='//div[contains(@class, "ipc-page-grid__item")]/section[contains(@class, "ipc-page-section--base")]',
+            foreach='//div[contains(@class, "ipc-page-grid__item")]/section[contains(@class, "ipc-page-section--base")]',  # noqa: E501
             key=Path(
                 './div[1]//h3//text()',
                 transform=lambda x: (x or '').strip().lower()
@@ -2122,6 +2126,11 @@ def _parse_review(x):
     return result
 
 
+MONTH_NUMS = {m: "%02d" % (n + 1)
+              for n, m in enumerate(["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"])}
+
+
 class DOMHTMLSeasonEpisodesParser(DOMParserBase):
     """Parser for the "episode list" page of a given movie.
     The page should be provided as a string, as taken from
@@ -2137,62 +2146,51 @@ class DOMHTMLSeasonEpisodesParser(DOMParserBase):
     rules = [
         Rule(
             key='series link',
-            extractor=Path('//div[@class="parent"]//a/@href')
+            extractor=Path('.//div[@data-testid="poster"]//a/@href')
         ),
         Rule(
             key='series title',
-            extractor=Path('//head/meta[@property="og:title"]/@content')
+            extractor=Path('//h2[@data-testid="subtitle"]/text()')
         ),
         Rule(
             key='_seasons',
             extractor=Path(
-                foreach='//select[@id="bySeason"]//option',
-                path='./@value'
+                foreach='//li[@data-testid="tab-season-entry"]',
+                path='./text()'
             )
         ),
         Rule(
             key='_current_season',
-            extractor=Path('//select[@id="bySeason"]//option[@selected]/@value')
+            extractor=Path('//li[@data-testid="tab-season-entry"][@aria-selected="true"]/text()')
         ),
         Rule(
             key='episodes',
             extractor=Rules(
-                foreach='//div[@class="info"]',
+                foreach='//h4',
                 rules=[
                     Rule(
-                        key=Path('.//meta/@content',
-                                 transform=lambda x: 'episode %s' % x),
+                        key=Path('.//a//text()'),
                         extractor=Rules(
                             rules=[
                                 Rule(
                                     key='link',
-                                    extractor=Path('.//strong//a[@href][1]/@href')
+                                    extractor=Path('.//a/@href')
                                 ),
                                 Rule(
                                     key='original air date',
-                                    extractor=Path('.//div[@class="airdate"]/text()')
-                                ),
-                                Rule(
-                                    key='title',
-                                    extractor=Path('.//strong//text()')
+                                    extractor=Path('following-sibling::span/text()')
                                 ),
                                 Rule(
                                     key='rating',
-                                    extractor=Path(
-                                        './/div[contains(@class, "ipl-rating-star")][1]'
-                                        '/span[@class="ipl-rating-star__rating"][1]/text()'
-                                    )
+                                    extractor=Path('../..//span[contains(@class, "ratingGroup--imdb-rating")]/text()')
                                 ),
                                 Rule(
                                     key='votes',
-                                    extractor=Path(
-                                        './/div[contains(@class, "ipl-rating-star")][1]'
-                                        '/span[@class="ipl-rating-star__total-votes"][1]/text()'
-                                    )
+                                    extractor=Path('../..//span[contains(@class, "ipc-rating-star--voteCount")]/text()')
                                 ),
                                 Rule(
                                     key='plot',
-                                    extractor=Path('.//div[@class="item_description"]//text()')
+                                    extractor=Path('../..//div[@role="presentation"]//text()')
                                 )
                             ]
                         )
@@ -2226,23 +2224,25 @@ class DOMHTMLSeasonEpisodesParser(DOMParserBase):
                 data[k] = [episode]
             del data['episode -1']
         episodes = data.get('episodes', [])
-        for ep in episodes:
+        for seq, ep in enumerate(episodes):
             if not ep:
                 continue
-            episode_nr, episode = list(ep.items())[0]
-            if not episode_nr.startswith('episode '):
-                continue
-            episode_nr = episode_nr[8:].rstrip()
+            episode_nr_title, episode = list(ep.items())[0]
+            nr_title_tokens = episode_nr_title.split(" ∙ ")
+            if len(nr_title_tokens) == 2:
+                episode_seq, episode_title = nr_title_tokens
+                episode_nr = episode_seq.split(".")[1][1:]
+            else:
+                episode_nr, episode_title = seq + 1, nr_title_tokens[0]
             try:
                 episode_nr = int(episode_nr)
             except ValueError:
                 pass
-            episode_id = analyze_imdbid(episode.get('link' ''))
+            episode_id = analyze_imdbid(episode.get('link', ''))
             episode_air_date = episode.get('original air date', '').strip()
-            episode_title = episode.get('title', '').strip()
             episode_plot = episode.get('plot', '')
             episode_rating = episode.get('rating', '')
-            episode_votes = episode.get('votes', '')
+            episode_votes = episode.get('votes', '')[2:-1]  # remove ()
             if not (episode_nr is not None and episode_id and episode_title):
                 continue
             ep_obj = Movie(movieID=episode_id, title=episode_title,
@@ -2258,14 +2258,23 @@ class DOMHTMLSeasonEpisodesParser(DOMParserBase):
                     pass
             if episode_votes:
                 try:
-                    ep_obj['votes'] = int(episode_votes.replace(',', '')
-                                          .replace('.', '').replace('(', '').replace(')', ''))
+                    if episode_votes[-1] == "K":
+                        ep_votes = int(float(episode_votes[:-1]) * 1000)
+                    elif episode_votes[-1] == "M":
+                        ep_votes = int(float(episode_votes[:-1]) * 1000000)
+                    else:
+                        ep_votes = int(episode_votes)
+                    ep_obj['votes'] = ep_votes
                 except:
                     pass
             if episode_air_date:
-                ep_obj['original air date'] = episode_air_date
                 if episode_air_date[-4:].isdigit():
-                    ep_obj['year'] = episode_air_date[-4:]
+                    year = episode_air_date[-4:]
+                    if episode_air_date.startswith(("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")):
+                        ep_month, ep_day = episode_air_date[5:].split(",")[0].split(" ")
+                        episode_air_date = year + "-" + MONTH_NUMS[ep_month] + "-" + "%02d" % int(ep_day)
+                    ep_obj['original air date'] = episode_air_date
+                    ep_obj['year'] = int(year)
             if episode_plot:
                 ep_obj['plot'] = episode_plot
             nd[selected_season][episode_nr] = ep_obj
