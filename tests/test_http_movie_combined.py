@@ -26,7 +26,7 @@ def test_videos_if_none_should_be_excluded(ia):
 
 def test_movie_directors_should_be_a_list_of_persons(ia):
     movie = ia.get_movie('0133093', info=['main'])      # Matrix
-    directors = [p for p in movie.get('directors', [])]
+    directors = list(movie.get('directors', []))
     assert len(directors) == 2
     for p in directors:
         assert isinstance(p, Person)
@@ -46,7 +46,7 @@ def test_movie_directors_should_contain_person_names(ia):
 
 def test_movie_writers_should_be_a_list_of_persons(ia):
     movie = ia.get_movie('0133093', info=['main'])      # Matrix
-    writers = [p for p in movie.get('writers', [])]
+    writers = list(movie.get('writers', []))
     assert len(writers) == 2
     for p in writers:
         assert isinstance(p, Person)
@@ -520,7 +520,7 @@ def test_movie_sound_mix_if_single_with_notes_should_include_notes(ia):
 
 def test_movie_sound_mix_if_multiple_with_notes_should_include_notes(ia):
     movie = ia.get_movie('0133093', info=['main'])      # Matrix
-    expected = set(['DTS::(Digital DTS Sound)', 'Dolby Digital', 'SDDS', 'Dolby Atmos'])
+    expected = {'DTS::(Digital DTS Sound)', 'Dolby Digital', 'SDDS', 'Dolby Atmos'}
     assert expected.issubset(set(movie.get('sound mix', [])))
 
 

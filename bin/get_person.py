@@ -10,6 +10,7 @@ for "Julia Roberts".
 Notice that person_id, using 'sql', are not the same IDs used on the web.
 """
 
+
 import sys
 
 # Import the Cinemagoer package.
@@ -22,7 +23,7 @@ except ImportError:
 
 if len(sys.argv) != 2:
     print('Only one argument is required:')
-    print('  %s "person_id"' % sys.argv[0])
+    print(f'  {sys.argv[0]} "person_id"')
     sys.exit(2)
 
 person_id = sys.argv[1]

@@ -30,14 +30,19 @@ DEFAULT_RESULT_SIZE = 20
 
 def list_results(items, type_, n=None):
     field = 'title' if type_ == 'movie' else 'name'
-    print('  # IMDb id %s' % field)
-    print('=== ======= %s' % ('=' * len(field),))
+    print(f'  # IMDb id {field}')
+    print(f"=== ======= {'=' * len(field)}")
     for i, item in enumerate(items[:n]):
-        print('%(index)3d %(imdb_id)7s %(title)s' % {
-            'index': i + 1,
-            'imdb_id': getattr(item, type_ + 'ID'),
-            'title': item['long imdb ' + field]
-        })
+        print(
+            (
+                '%(index)3d %(imdb_id)7s %(title)s'
+                % {
+                    'index': i + 1,
+                    'imdb_id': getattr(item, f'{type_}ID'),
+                    'title': item[f'long imdb {field}'],
+                }
+            )
+        )
 
 
 def search_item(args):
@@ -124,7 +129,9 @@ def get_bottom_movies(args):
 
 def make_parser(prog):
     parser = ArgumentParser(prog)
-    parser.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
+    parser.add_argument(
+        '--version', action='version', version=f'%(prog)s {VERSION}'
+    )
 
     command_parsers = parser.add_subparsers(metavar='command', dest='command')
     command_parsers.required = True

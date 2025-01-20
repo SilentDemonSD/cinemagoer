@@ -38,11 +38,10 @@ def test_search_person_entries_should_include_headshot_if_available(ia):
 
 def test_search_person_entries_with_aka_should_exclude_name_in_aka(ia):
     people = ia.search_person('julia roberts')
-    robertson = None
-    for person in people:
-        if person['name'] == 'Julia Robertson':
-            robertson = person
-            break
+    robertson = next(
+        (person for person in people if person['name'] == 'Julia Robertson'),
+        None,
+    )
     assert robertson
     assert robertson['name'] == 'Julia Robertson'
 

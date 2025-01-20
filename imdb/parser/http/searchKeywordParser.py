@@ -54,8 +54,8 @@ def custom_analyze_title4kwd(title, yearNote, outline):
     if not title:
         return {}
     if yearNote:
-        yearNote = '%s)' % yearNote.split(' ')[0]
-        title = title + ' ' + yearNote
+        yearNote = f"{yearNote.split(' ')[0]})"
+        title = f'{title} {yearNote}'
     retDict = analyze_title(title)
     if outline:
         retDict['plot outline'] = outline

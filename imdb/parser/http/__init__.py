@@ -125,12 +125,14 @@ class IMDbHTTPSHandler(HTTPSHandler, object):
                                   url, errmsg, headers)
             return _FakeURLOpener(url, headers)
         raise IMDbDataAccessError(
-            {'url': 'http:%s' % url,
-             'errcode': errcode,
-             'errmsg': errmsg,
-             'headers': headers,
-             'error type': 'http_error_default',
-             'proxy': self.get_proxy()}
+            {
+                'url': f'http:{url}',
+                'errcode': errcode,
+                'errmsg': errmsg,
+                'headers': headers,
+                'error type': 'http_error_default',
+                'proxy': self.get_proxy(),
+            }
         )
 
     def open_unknown(self, fullurl, data=None):
@@ -182,13 +184,13 @@ class IMDbURLopener:
 
     def set_proxy(self, proxy):
         """Set the proxy."""
-        if not proxy:
-            if 'http' in self.proxies:
-                del self.proxies['http']
-        else:
+        if proxy:
             if not proxy.lower().startswith('http://'):
-                proxy = 'http://%s' % proxy
+                proxy = f'http://{proxy}'
             self.proxies['http'] = proxy
+
+        elif 'http' in self.proxies:
+            del self.proxies['http']
 
     def set_header(self, header, value, _overwrite=True):
         """Set a default header."""
@@ -199,10 +201,14 @@ class IMDbURLopener:
     def get_header(self, header):
         """Return the first value of a header, or None
         if not present."""
-        for index in range(len(self.addheaders)):
-            if self.addheaders[index][0] == header:
-                return self.addheaders[index][1]
-        return None
+        return next(
+            (
+                self.addheaders[index][1]
+                for index in range(len(self.addheaders))
+                if self.addheaders[index][0] == header
+            ),
+            None,
+        )
 
     def del_header(self, header):
         """Remove a default header."""
@@ -226,8 +232,7 @@ class IMDbURLopener:
                     'https': self.proxies['http']
                 })
                 handlers.append(proxy_handler)
-            handlers.append(self.redirect_handler)
-            handlers.append(self.https_handler)
+            handlers.extend((self.redirect_handler, self.https_handler))
             uopener = build_opener(*handlers)
             uopener.addheaders = list(self.addheaders)
             response = uopener.open(url)
@@ -271,9 +276,7 @@ class IMDbURLopener:
             # The detection of the encoding is error prone...
             self._logger.warn('Unable to detect the encoding of the retrieved page [%s];'
                               ' falling back to default utf8.', encode)
-        if isinstance(content, str):
-            return content
-        return str(content, encode, 'replace')
+        return content if isinstance(content, str) else str(content, encode, 'replace')
 
 
 class IMDbHTTPAccessSystem(IMDbBase):
@@ -312,21 +315,21 @@ class IMDbHTTPAccessSystem(IMDbBase):
         try:
             return '%07d' % int(movieID)
         except ValueError as e:
-            raise IMDbParserError('invalid movieID "%s": %s' % (movieID, e))
+            raise IMDbParserError(f'invalid movieID "{movieID}": {e}')
 
     def _normalize_personID(self, personID):
         """Normalize the given personID."""
         try:
             return '%07d' % int(personID)
         except ValueError as e:
-            raise IMDbParserError('invalid personID "%s": %s' % (personID, e))
+            raise IMDbParserError(f'invalid personID "{personID}": {e}')
 
     def _normalize_companyID(self, companyID):
         """Normalize the given companyID."""
         try:
             return '%07d' % int(companyID)
         except ValueError as e:
-            raise IMDbParserError('invalid companyID "%s": %s' % (companyID, e))
+            raise IMDbParserError(f'invalid companyID "{companyID}": {e}')
 
     def get_imdbMovieID(self, movieID):
         """Translate a movieID in an imdbID; in this implementation
@@ -435,8 +438,9 @@ class IMDbHTTPAccessSystem(IMDbBase):
         result_list = []
         while True:
             cont = self._get_list_content(list_, page=page)
-            result_part = self.listProxy.list_parser.parse(cont, results=results)['data']
-            if result_part:
+            if result_part := self.listProxy.list_parser.parse(
+                cont, results=results
+            )['data']:
                 page += 1
                 result_list.extend(result_part)
             else:
@@ -457,8 +461,8 @@ class IMDbHTTPAccessSystem(IMDbBase):
         if sort is not None:
             criteria['sort'] = sort
             if sort_dir is not None:
-                criteria['sort'] = sort + ',' + sort_dir
-        params = '&'.join(['%s=%s' % (k, v) for k, v in criteria.items()])
+                criteria['sort'] = f'{sort},{sort_dir}'
+        params = '&'.join([f'{k}={v}' for k, v in criteria.items()])
         return self._retrieve(self.urls['search_movie_advanced'] % params)
 
     def _search_movie_advanced(self, title=None, adult=None, results=None, sort=None, sort_dir=None):
@@ -641,7 +645,7 @@ class IMDbHTTPAccessSystem(IMDbBase):
         _seasons = temp_d['data'].get('_seasons') or []
 
         nr_eps = 0
-        data_d = dict()
+        data_d = {}
 
         for season in _seasons:
             if season_nums != 'all' and season not in season_nums:
@@ -668,7 +672,7 @@ class IMDbHTTPAccessSystem(IMDbBase):
             else:
                 data_d = other_d
         if not data_d:
-            data_d['data'] = dict()
+            data_d['data'] = {}
         data_d['data']['number of episodes'] = nr_eps
         return data_d
 
@@ -695,8 +699,7 @@ class IMDbHTTPAccessSystem(IMDbBase):
 
     def get_person_main(self, personID):
         cont = self._retrieve(self.urls['person_main'] % personID)
-        ret = self.pProxy.maindetails_parser.parse(cont)
-        return ret
+        return self.pProxy.maindetails_parser.parse(cont)
 
     def get_person_filmography(self, personID):
         cont = self._retrieve(self.urls['person_main'] % personID + 'fullcredits')
@@ -742,8 +745,7 @@ class IMDbHTTPAccessSystem(IMDbBase):
 
     def get_company_main(self, companyID):
         cont = self._retrieve(self.urls['company_main'] % companyID)
-        ret = self.compProxy.company_main_parser.parse(cont)
-        return ret
+        return self.compProxy.company_main_parser.parse(cont)
 
     def _search_keyword(self, keyword, results):
         # XXX: the IMDb web server seems to have some serious problem with
@@ -762,7 +764,7 @@ class IMDbHTTPAccessSystem(IMDbBase):
         try:
             url = self.urls['keyword_main'] % keyword
             if page is not None:
-                url = url + "&page=" + str(page)
+                url = f"{url}&page={str(page)}"
             cont = self._retrieve(url)
         except IMDbDataAccessError:
             self._http_logger.warn('unable to get keyword %s', keyword,

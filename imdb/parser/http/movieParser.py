@@ -133,9 +133,9 @@ def _manageRoles(mo):
             roleID = '/'
         else:
             roleID += '/'
-        newRoles.append('<div class="_imdbpyrole" roleid="%s">%s</div>' % (
-            roleID, role.strip()
-        ))
+        newRoles.append(
+            f'<div class="_imdbpyrole" roleid="{roleID}">{role.strip()}</div>'
+        )
     return firstHalf + ' / '.join(newRoles) + mo.group(3)
 
 
@@ -184,27 +184,21 @@ _re_og_title = re.compile(
 
 def special_kind(og_title):
     specialKind = re.compile(r"\n(.*)").findall(og_title)
-    if len(specialKind):
-        return specialKind[0].strip()
-    return None
+    return specialKind[0].strip() if len(specialKind) else None
 
 
 def analyze_og_title(og_title):
-    data = {}
     og_kind = special_kind(og_title)
     match = _re_og_title.match(og_title)
     if og_title and not match:
         # assume it's a title in production, missing release date information
         return {'title': og_title}
-    data['title'] = match.group(1)
+    data = {'title': match.group(1)}
     if match.group(3):
         data['year'] = int(match.group(3))
     kind = match.group(2) or match.group(6)
     if kind is None:
-        if og_kind is None:
-            kind = 'movie'
-        else:
-            kind = og_kind.lower()
+        kind = 'movie' if og_kind is None else og_kind.lower()
     else:
         kind = kind.lower()
         kind = KIND_MAP.get(kind, kind)
@@ -729,14 +723,11 @@ class DOMHTMLMovieParser(DOMParserBase):
     ]
 
     def preprocess_dom(self, dom):
-        # Handle series information.
-        xpath = self.xpath(dom, "//b[text()='Series Crew']")
-        if xpath:
+        if xpath := self.xpath(dom, "//b[text()='Series Crew']"):
             b = xpath[-1]  # In doubt, take the last one.
             for a in self.xpath(b, "./following::h5/a[@class='glossary']"):
-                name = a.get('name')
-                if name:
-                    a.set('name', 'series %s' % name)
+                if name := a.get('name'):
+                    a.set('name', f'series {name}')
         # Remove links to IMDbPro.
         preprocessors.remove(dom, '//span[@class="pro-link"]')
         # Remove some 'more' links (keep others, like the one around
@@ -819,7 +810,7 @@ class DOMHTMLMovieParser(DOMParserBase):
                 data['episode'] = 'unknown'
             del data['season/episode']
         for k in ('writer', 'director'):
-            t_k = 'thin %s' % k
+            t_k = f'thin {k}'
             if t_k not in data:
                 continue
             if k not in data:
@@ -860,12 +851,11 @@ class DOMHTMLMovieParser(DOMParserBase):
                 data['votes'] = int(votes)
             except (TypeError, ValueError):
                 pass
-        companies = data.get('companies')
-        if companies:
+        if companies := data.get('companies'):
             for section in companies:
                 for key, value in section.items():
                     if key in data:
-                        key = '%s companies' % key
+                        key = f'{key} companies'
                     data.update({key: value})
             del data['companies']
         if 'box office' in data:
@@ -881,7 +871,7 @@ def _process_plotsummary(x):
     xauthor = x.get('author')
     xplot = x.get('plot', '').strip()
     if xauthor:
-        xplot += '::%s' % xauthor
+        xplot += f'::{xauthor}'
     return xplot
 
 
@@ -935,19 +925,17 @@ class DOMHTMLPlotParser(DOMParserBase):
 
 
 def _process_award(x):
-    award = {}
     _award = x.get('award')
     if _award is not None:
         _award = _award.strip()
-    award['award'] = _award
+    award = {'award': _award}
     if not award['award']:
         return {}
     award['year'] = x.get('year').strip()
     if award['year'] and award['year'].isdigit():
         award['year'] = int(award['year'])
     award['result'] = x.get('result').strip()
-    category = x.get('category').strip()
-    if category:
+    if category := x.get('category').strip():
         award['category'] = category
     received_with = x.get('with')
     if received_with is not None:
@@ -955,8 +943,7 @@ def _process_award(x):
     notes = x.get('notes')
     if notes is not None:
         notes = notes.strip().split('\n', 2)[0]
-        notes = re_space.sub(' ', notes)
-        if notes:
+        if notes := re_space.sub(' ', notes):
             award['notes'] = notes
     award['anchor'] = x.get('anchor')
     return award
@@ -1254,17 +1241,15 @@ class DOMHTMLSoundtrackParser(DOMParserBase):
                 if title[0] == '"' and title[-1] == '"':
                     title = title[1:-1]
                 nds = []
-                newData = {}
                 for l in ds[1:]:
                     if ' with ' in l or ' by ' in l or ' from ' in l \
-                            or ' of ' in l or l.startswith('From '):
+                                or ' of ' in l or l.startswith('From '):
                         nds.append(l)
+                    elif nds:
+                        nds[-1] += l
                     else:
-                        if nds:
-                            nds[-1] += l
-                        else:
-                            nds.append(l)
-                newData[title] = {}
+                        nds.append(l)
+                newData = {title: {}}
                 for l in nds:
                     skip = False
                     for sep in ('From ',):
@@ -1452,21 +1437,21 @@ class DOMHTMLReleaseinfoParser(DOMParserBase):
     ]
 
     def postprocess_data(self, data):
-        if not ('release dates' in data or 'akas' in data):
+        if 'release dates' not in data and 'akas' not in data:
             return data
         releases = data.get('release dates') or []
         rl = []
         for i in releases:
             country = i.get('country')
             date = i.get('date')
-            if not (country and date):
+            if not country or not date:
                 continue
             country = country.strip()
             date = date.strip()
-            if not (country and date):
+            if not country or not date:
                 continue
             notes = i.get('notes')
-            info = '%s::%s' % (country, date)
+            info = f'{country}::{date}'
             if notes:
                 notes = notes.replace('\n', '')
                 i['notes'] = notes
@@ -1485,12 +1470,10 @@ class DOMHTMLReleaseinfoParser(DOMParserBase):
             title = (aka.get('title') or '').strip()
             if not title:
                 continue
-            countries = (aka.get('countries') or '').split(',')
-            if not countries:
-                nakas.append(title)
+            if countries := (aka.get('countries') or '').split(','):
+                nakas.extend(f'{title} {country.strip()}' for country in countries)
             else:
-                for country in countries:
-                    nakas.append('%s %s' % (title, country.strip()))
+                nakas.append(title)
         if akas:
             if releases:
                 for rd in data['raw release dates']:
@@ -1565,8 +1548,7 @@ class DOMHTMLRatingsParser(DOMParserBase):
 
     def postprocess_data(self, data):
         nd = {}
-        demographics = data.get('demographics')
-        if demographics:
+        if demographics := data.get('demographics'):
             dem = {}
             for dem_data in demographics:
                 link = (dem_data.get('link') or '').strip()
@@ -1588,8 +1570,7 @@ class DOMHTMLRatingsParser(DOMParserBase):
                     continue
                 dem[info] = {'votes': votes, 'rating': rating}
             nd['demographics'] = dem
-        votes = data.get('votes', [])
-        if votes:
+        if votes := data.get('votes', []):
             nd['number of votes'] = {}
             for v_info in votes:
                 ordinal = v_info.get('ordinal')
@@ -1605,8 +1586,7 @@ class DOMHTMLRatingsParser(DOMParserBase):
                 except Exception:
                     continue
                 nd['number of votes'][ordinal] = nr_votes
-        mean = data.get('mean and median', '')
-        if mean:
+        if mean := data.get('mean and median', ''):
             means = self.re_means.findall(mean)
             if means and len(means[0]) == 2:
                 am, med = means[0]
@@ -1630,7 +1610,7 @@ def _normalize_href(href):
         if href.startswith('/'):
             href = href[1:]
         # TODO: imdbURL_base may be set by the user!
-        href = '%s%s' % (imdbURL_base, href)
+        href = f'{imdbURL_base}{href}'
     return href
 
 
@@ -1735,7 +1715,7 @@ class DOMHTMLReviewsParser(DOMParserBase):
                 review['helpful'] = 0
                 review['not_helpful'] = 0
 
-            review['author'] = "ur%s" % review['author']
+            review['author'] = f"ur{review['author']}"
 
         return data
 
@@ -1820,12 +1800,11 @@ class DOMHTMLFullCreditsParser(DOMParserBase):
     ]
 
     def postprocess_data(self, data):
-        # Convert section names.
-        clean_cast = []
-        for person in data.get('cast', []):
-            if person.personID and person.get('name'):
-                clean_cast.append(person)
-        if clean_cast:
+        if clean_cast := [
+            person
+            for person in data.get('cast', [])
+            if person.personID and person.get('name')
+        ]:
             data['cast'] = clean_cast
         misc_sections = data.get('misc sections')
         if misc_sections is not None:
@@ -1957,18 +1936,16 @@ class DOMHTMLLocationsParser(DOMParserBase):
             extractor=Rules(
                 foreach='//dt',
                 rules=[
-                    Rule(
-                        key='place',
-                        extractor=Path('.//text()')
-                    ),
+                    Rule(key='place', extractor=Path('.//text()')),
                     Rule(
                         key='note',
-                        extractor=Path('./following-sibling::dd[1]//text()')
-                    )
+                        extractor=Path('./following-sibling::dd[1]//text()'),
+                    ),
                 ],
-                transform=lambda x: ('%s::%s' % (x['place'].strip(),
-                                                 (x['note'] or '').strip())).strip(':')
-            )
+                transform=lambda x: f"{x['place'].strip()}::{(x['note'] or '').strip()}".strip(
+                    ':'
+                ),
+            ),
         )
     ]
 
@@ -2024,7 +2001,7 @@ class DOMHTMLTechParser(DOMParserBase):
     def postprocess_data(self, data):
         info = {}
         for section in data.get('tech', []):
-            info.update(section)
+            info |= section
         for key, value in info.items():
             if isinstance(value, list):
                 info[key] = [self.re_space.sub(' ', x).strip() for x in value]
@@ -2102,12 +2079,10 @@ class DOMHTMLNewsParser(DOMParserBase):
 
 
 def _parse_review(x):
-    result = {}
     title = x.get('title').strip()
     if title[-1] == ':':
         title = title[:-1]
-    result['title'] = title
-    result['link'] = _normalize_href(x.get('link'))
+    result = {'title': title, 'link': _normalize_href(x.get('link'))}
     kind = x.get('kind').strip()
     if kind[-1] == ':':
         kind = kind[:-1]
@@ -2121,7 +2096,7 @@ def _parse_review(x):
     if x.get('item') is not None:
         item = x.get('item').strip()
         review = review[len(item):].strip()
-        review = "%s: %s" % (item, review)
+        review = f"{item}: {review}"
     result['review'] = review
     return result
 
@@ -2304,9 +2279,8 @@ def _build_episode(x):
         if year and year.isdigit():
             year = int(year)
         e['year'] = year
-    else:
-        if oad and oad[-4:].isdigit():
-            e['year'] = int(oad[-4:])
+    elif oad and oad[-4:].isdigit():
+        e['year'] = int(oad[-4:])
     epinfo = x.get('episode')
     if epinfo is not None:
         season, episode = epinfo.split(':')[0].split(',')
@@ -2315,8 +2289,7 @@ def _build_episode(x):
     else:
         e['season'] = 'unknown'
         e['episode'] = 'unknown'
-    plot = x.get('plot')
-    if plot:
+    if plot := x.get('plot'):
         e['plot'] = plot.strip()
     return e
 
@@ -2437,7 +2410,7 @@ class DOMHTMLEpisodesParser(DOMParserBase):
                     if not isinstance(episode_key, int):
                         episode_key = ep_counter
                         ep_counter += 1
-                    cast_key = 'Season %s, Episode %s:' % (season_key, episode_key)
+                    cast_key = f'Season {season_key}, Episode {episode_key}:'
                     if cast_key in data:
                         cast = data[cast_key]
                         for i in range(len(cast)):
@@ -2445,9 +2418,7 @@ class DOMHTMLEpisodesParser(DOMParserBase):
                         episode['cast'] = cast
                     episode['episode of'] = series
                     nd[season_key][episode_key] = episode
-        if len(nd) == 0:
-            return {}
-        return {'episodes': nd}
+        return {} if not nd else {'episodes': nd}
 
 
 class DOMHTMLFaqsParser(DOMParserBase):
@@ -2590,9 +2561,7 @@ class DOMHTMLAiringParser(DOMParserBase):
             del data['series id']
         if 'airing' in data:
             data['airing'] = [_f for _f in data['airing'] if _f]
-        if 'airing' not in data or not data['airing']:
-            return {}
-        return data
+        return {} if 'airing' not in data or not data['airing'] else data
 
 
 class DOMHTMLParentsGuideParser(DOMParserBase):
@@ -2699,11 +2668,8 @@ class DOMHTMLParentsGuideParser(DOMParserBase):
             del data['advisories']
 
         if 'advisory votes' in data:
-            advisory_votes = {}
-            for vote in data['advisory votes']:
-                if 'status' not in vote or 'votes' not in vote:
-                    continue
-                advisory_votes[vote['section'][9:]] = {
+            advisory_votes = {
+                vote['section'][9:]: {
                     'votes': {
                         'None': vote['votes'][0],
                         'Mild': vote['votes'][1],
@@ -2712,6 +2678,9 @@ class DOMHTMLParentsGuideParser(DOMParserBase):
                     },
                     'status': vote['status'],
                 }
+                for vote in data['advisory votes']
+                if 'status' in vote and 'votes' in vote
+            }
             data['advisory votes'] = advisory_votes
 
         return data

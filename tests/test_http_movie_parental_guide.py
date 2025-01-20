@@ -11,7 +11,9 @@ def test_movie_certificates_from_parental_guide(ia):
 
 def test_movie_advisories(ia):
     movie = ia.get_movie('0133093', info=['parents guide'])      # Matrix
-    assert any(['Mouse gets shot' in x for x in movie.get('advisory spoiler violence')])
+    assert any(
+        'Mouse gets shot' in x for x in movie.get('advisory spoiler violence')
+    )
 
 
 def test_movie_advisory_votes(ia):

@@ -106,12 +106,9 @@ def make(filename, outfile):
     STR = 2
 
     # Compute .mo name from .po name and arguments
-    if filename.endswith('.po'):
-        infile = filename
-    else:
-        infile = filename + '.po'
+    infile = filename if filename.endswith('.po') else f'{filename}.po'
     if outfile is None:
-        outfile = os.path.splitext(infile)[0] + '.mo'
+        outfile = f'{os.path.splitext(infile)[0]}.mo'
 
     try:
         lines = open(infile, 'rb').readlines()
@@ -149,14 +146,14 @@ def make(filename, outfile):
                 if not msgid:
                     # See whether there is an encoding declaration
                     p = HeaderParser()
-                    charset = p.parsestr(msgstr.decode(encoding)).get_content_charset()
-                    if charset:
+                    if charset := p.parsestr(
+                        msgstr.decode(encoding)
+                    ).get_content_charset():
                         encoding = charset
             section = ID
             l = l[5:]
             msgid = msgstr = b''
             is_plural = False
-        # This is a message with plural forms
         elif l.startswith('msgid_plural'):
             if section != ID:
                 print('msgid_plural not preceded by msgid on %s:%d' % (infile, lno))
@@ -164,7 +161,6 @@ def make(filename, outfile):
             l = l[12:]
             msgid += b'\0' # separator of singular and plural
             is_plural = True
-        # Now we are in a msgstr section
         elif l.startswith('msgstr'):
             section = STR
             if l.startswith('msgstr['):

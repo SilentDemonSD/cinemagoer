@@ -39,9 +39,7 @@ def transf_imdbid(x):
 
 
 def transf_multi_imdbid(x):
-    if not x:
-        return x
-    return re_imdbids.sub('', x)
+    return x if not x else re_imdbids.sub('', x)
 
 
 def transf_multi_character(x):
@@ -252,10 +250,7 @@ def ratcliff(s1, s2, sm):
     :rtype: float"""
     s1len = len(s1)
     s2len = len(s2)
-    if s1len < s2len:
-        threshold = float(s1len) / s2len
-    else:
-        threshold = float(s2len) / s1len
+    threshold = float(s1len) / s2len if s1len < s2len else float(s2len) / s1len
     if threshold < STRING_MAXLENDIFFER:
         return 0.0
     sm.set_seq2(s2.lower())
@@ -288,13 +283,9 @@ def scan_names(name_list, name, results=0, ro_threshold=RO_THRESHOLD):
                   ratcliff(name, canonicalName(nil).replace(',', ''), sm2)]
         ratio = max(ratios)
         if ratio >= ro_threshold:
-            if i in resd:
-                if ratio > resd[i][0]:
-                    resd[i] = (ratio, (i, n_data))
-            else:
+            if i in resd and ratio > resd[i][0] or i not in resd:
                 resd[i] = (ratio, (i, n_data))
-    res = list(resd.values())
-    res.sort()
+    res = sorted(resd.values())
     res.reverse()
     if results > 0:
         res[:] = res[:results]
@@ -336,13 +327,9 @@ def scan_titles(titles_list, title, results=0, ro_threshold=RO_THRESHOLD):
         if t_data.get('kind') == 'episode':
             ratio -= .2
         if ratio >= ro_threshold:
-            if i in resd:
-                if ratio > resd[i][0]:
-                    resd[i] = (ratio, (i, t_data))
-            else:
+            if i in resd and ratio > resd[i][0] or i not in resd:
                 resd[i] = (ratio, (i, t_data))
-    res = list(resd.values())
-    res.sort()
+    res = sorted(resd.values())
     res.reverse()
     if results > 0:
         res[:] = res[:results]

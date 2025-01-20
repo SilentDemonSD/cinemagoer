@@ -105,13 +105,12 @@ def makeTextNotes(replaceTxtNotes):
 
         def _excludeFalseConditionals(matchobj):
             # Return an empty string if the conditional is false/empty.
-            if matchobj.group(1) in keysDict:
-                return matchobj.group(2)
-            return ''
+            return matchobj.group(2) if matchobj.group(1) in keysDict else ''
 
         while re_conditional.search(outS):
             outS = re_conditional.sub(_excludeFalseConditionals, outS)
         return outS
+
     return _replacer
 
 
@@ -177,10 +176,8 @@ def makeObject2Txt(movieTxt=None, personTxt=None, characterTxt=None,
             # Return an empty string if the conditional is false/empty.
             condition = matchobj.group(1)
             proceed = obj.get(condition) or getattr(obj, condition, None)
-            if proceed:
-                return matchobj.group(2)
-            else:
-                return ''
+            return matchobj.group(2) if proceed else ''
+
         while re_conditional.search(outs):
             outs = re_conditional.sub(_excludeFalseConditionals, outs)
         for key in re_subst.findall(outs):
@@ -197,8 +194,9 @@ def makeObject2Txt(movieTxt=None, personTxt=None, characterTxt=None,
                 value = ''
             elif not isinstance(value, str):
                 value = str(value)
-            outs = outs.replace('%(' + key + ')s', value)
+            outs = outs.replace(f'%({key})s', value)
         return outs
+
     return object2txt
 
 
@@ -265,10 +263,11 @@ def makeModCGILinks(movieTxt, personTxt, characterTxt=None, encoding='utf8'):
 
 
 # links to the imdb.com web site.
-_movieTxt = '<a href="' + imdbURL_movie_base + 'tt%(movieID)s">%(title)s</a>'
-_personTxt = '<a href="' + imdbURL_person_base + 'nm%(personID)s">%(name)s</a>'
-_characterTxt = '<a href="' + imdbURL_character_base + \
-                'ch%(characterID)s">%(name)s</a>'
+_movieTxt = f'<a href="{imdbURL_movie_base}tt%(movieID)s">%(title)s</a>'
+_personTxt = f'<a href="{imdbURL_person_base}nm%(personID)s">%(name)s</a>'
+_characterTxt = (
+    f'<a href="{imdbURL_character_base}ch%(characterID)s">%(name)s</a>'
+)
 modHtmlLinks = makeModCGILinks(movieTxt=_movieTxt, personTxt=_personTxt,
                                characterTxt=_characterTxt)
 modHtmlLinksASCII = makeModCGILinks(movieTxt=_movieTxt, personTxt=_personTxt,
@@ -278,9 +277,7 @@ modHtmlLinksASCII = makeModCGILinks(movieTxt=_movieTxt, personTxt=_personTxt,
 
 def sortedSeasons(m):
     """Return a sorted list of seasons of the given series."""
-    seasons = list(m.get('episodes', {}).keys())
-    seasons.sort()
-    return seasons
+    return sorted(m.get('episodes', {}).keys())
 
 
 def sortedEpisodes(m, season=None):
@@ -290,14 +287,11 @@ def sortedEpisodes(m, season=None):
     seasons = season
     if season is None:
         seasons = sortedSeasons(m)
-    else:
-        if not isinstance(season, (tuple, list)):
-            seasons = [season]
+    elif not isinstance(season, (tuple, list)):
+        seasons = [season]
     for s in seasons:
-        eps_indx = list(m.get('episodes', {}).get(s, {}).keys())
-        eps_indx.sort()
-        for e in eps_indx:
-            episodes.append(m['episodes'][s][e])
+        eps_indx = sorted(m.get('episodes', {}).get(s, {}).keys())
+        episodes.extend(m['episodes'][s][e] for e in eps_indx)
     return episodes
 
 
@@ -363,16 +357,15 @@ _MAP_TOP_OBJ = {
     'company': Company
 }
 
-# Tags to be converted to lists.
-_TAGS_TO_LIST = dict([(x[0], None) for x in list(TAGS_TO_MODIFY.values())])
-_TAGS_TO_LIST.update(_MAP_TOP_OBJ)
+_TAGS_TO_LIST = (
+    dict([(x[0], None) for x in list(TAGS_TO_MODIFY.values())]) | _MAP_TOP_OBJ
+)
 
 
 def tagToKey(tag):
     """Return the name of the tag, taking it from the 'key' attribute,
     if present."""
-    keyAttr = tag.get('key')
-    if keyAttr:
+    if keyAttr := tag.get('key'):
         if tag.get('keytype') == 'int':
             keyAttr = int(keyAttr)
         return keyAttr
@@ -412,8 +405,7 @@ def parseTags(tag, _topLevel=True, _as=None, _infoset2keys=None, _key2infoset=No
         tagContent = tag.getchildren()
         if tagContent and tagContent[0].text:
             tagStr = (tagContent[0].text or '').strip()
-    infoset = tag.get('infoset')
-    if infoset:
+    if infoset := tag.get('infoset'):
         _key2infoset[name] = infoset
         _infoset2keys.setdefault(infoset, []).append(name)
     # Here we use tag.name to avoid tags like <item title="company">
@@ -485,12 +477,10 @@ def parseTags(tag, _topLevel=True, _as=None, _infoset2keys=None, _key2infoset=No
         _adder = lambda key, value: item.data.update({key: value})
     elif tagStr:
         tagNotes = tag.find('notes')
-        if tagNotes is not None:
-            notes = (tagNotes.text or '').strip()
-            if notes:
-                tagStr += '::%s' % notes
-        else:
+        if tagNotes is None:
             tagStr = _valueWithType(tag, tagStr)
+        elif notes := (tagNotes.text or '').strip():
+            tagStr += f'::{notes}'
         return tagStr
     elif firstChild is not None:
         firstChildName = tagToKey(firstChild)
@@ -508,9 +498,13 @@ def parseTags(tag, _topLevel=True, _as=None, _infoset2keys=None, _key2infoset=No
         # Exclude dinamically generated keys.
         if tag.tag in _MAP_TOP_OBJ and subTagKey in item._additional_keys():
             continue
-        subItem = parseTags(subTag, _topLevel=False, _as=_as,
-                            _infoset2keys=_infoset2keys, _key2infoset=_key2infoset)
-        if subItem:
+        if subItem := parseTags(
+            subTag,
+            _topLevel=False,
+            _as=_as,
+            _infoset2keys=_infoset2keys,
+            _key2infoset=_key2infoset,
+        ):
             _adder(subTagKey, subItem)
     if _topLevel and name in _MAP_TOP_OBJ:
         # Add information about 'info sets', but only to the top-level object.
@@ -571,10 +565,8 @@ def sortAKAsBySimilarity(movie, title, _titlesOnly=True, _preferredLang=None):
     # estimate string distance between current title and given title
     m_title = movie['title'].lower()
     l_title = title.lower()
-    scores = []
     score = difflib.SequenceMatcher(None, m_title, l_title).ratio()
-    # set original title and corresponding score as the best match for given title
-    scores.append((score, movie['title'], None))
+    scores = [(score, movie['title'], None)]
     for language, aka in akasLanguages(movie):
         # estimate string distance between current title and given title
         m_title = aka.lower()
@@ -584,19 +576,14 @@ def sortAKAsBySimilarity(movie, title, _titlesOnly=True, _preferredLang=None):
             score += 1
         scores.append((score, aka, language))
     scores.sort(reverse=True)
-    if _titlesOnly:
-        return [x[1] for x in scores]
-    return scores
+    return [x[1] for x in scores] if _titlesOnly else scores
 
 
 def getAKAsInLanguage(movie, lang, _searchedTitle=None):
     """Return a list of AKAs of a movie, in the specified language.
     If _searchedTitle is given, the AKAs are sorted by their similarity
     to it."""
-    akas = []
-    for language, aka in akasLanguages(movie):
-        if lang == language:
-            akas.append(aka)
+    akas = [aka for language, aka in akasLanguages(movie) if lang == language]
     if _searchedTitle:
         scores = []
         for aka in akas:
@@ -615,24 +602,20 @@ def resizeImage(image, width=None, height=None, crop=None, custom_regex=None):
     try:
         resultImage = re.findall(regexString, image)[0]
     except IndexError:
-        raise IMDbError('Image url not matched. Original url: "%s"' % (image))
+        raise IMDbError(f'Image url not matched. Original url: "{image}"')
 
     if "@@" in image:
         resultImage += '@'
 
-    if "@" not in image:
-        resultImage += '._V1_'
-    else:
-        resultImage += '@._V1_'
-
+    resultImage += '._V1_' if "@" not in image else '@._V1_'
     if width:
-        resultImage += 'SX%s_' % width
+        resultImage += f'SX{width}_'
     if height:
-        resultImage += 'SY%s_' % height
+        resultImage += f'SY{height}_'
 
     if crop:
         cropVals = ','.join(crop)
-        resultImage += 'CR%s_' % cropVals
+        resultImage += f'CR{cropVals}_'
 
     resultImage += '.jpg'
 

@@ -151,10 +151,8 @@ class Movie(_Container):
         lang = self.get('languages')
         if lang:
             lang = lang[0]
-        else:
-            country = self.get('countries')
-            if country:
-                lang = linguistics.COUNTRY_LANG.get(country[0])
+        elif country := self.get('countries'):
+            lang = linguistics.COUNTRY_LANG.get(country[0])
         return lang
 
     def smartCanonicalTitle(self, title=None, lang=None):
@@ -170,9 +168,7 @@ class Movie(_Container):
 
     def _getSeriesTitle(self, obj):
         """Get the title from a Movie object or return the string itself."""
-        if isinstance(obj, Movie):
-            return obj.get('title', '')
-        return obj
+        return obj.get('title', '') if isinstance(obj, Movie) else obj
 
     def _getitem(self, key):
         """Handle special keys."""
@@ -206,9 +202,7 @@ class Movie(_Container):
                 return build_title(self.data, canonical=True)
             elif key == 'smart long imdb canonical title':
                 return build_title(self.data, canonical=True, lang=self.guessLanguage())
-        if key == 'full-size cover url':
-            return self.get_fullsizeURL()
-        return None
+        return self.get_fullsizeURL() if key == 'full-size cover url' else None
 
     def getID(self):
         """Return the movieID."""
@@ -227,12 +221,13 @@ class Movie(_Container):
         if not isinstance(other, self.__class__):
             return False
         if 'title' in self.data and 'title' in other.data and \
-                build_title(self.data, canonical=False) == build_title(other.data, canonical=False):
+                    build_title(self.data, canonical=False) == build_title(other.data, canonical=False):
             return True
-        if self.accessSystem == other.accessSystem and \
-                self.movieID is not None and self.movieID == other.movieID:
-            return True
-        return False
+        return (
+            self.accessSystem == other.accessSystem
+            and self.movieID is not None
+            and self.movieID == other.movieID
+        )
     isSameMovie = isSameTitle   # XXX: just for backward compatiblity.
 
     def __contains__(self, item):
@@ -281,7 +276,7 @@ class Movie(_Container):
             title = self.get('long imdb episode title')
         else:
             title = self.get('long imdb title')
-        return '<Movie id:%s[%s] title:_%s_>' % (self.movieID, self.accessSystem, title)
+        return f'<Movie id:{self.movieID}[{self.accessSystem}] title:_{title}_>'
 
     def __str__(self):
         """Simply print the short title."""
@@ -298,9 +293,10 @@ class Movie(_Container):
             for person in personList:
                 n = person.get('name', '')
                 if person.currentRole:
-                    n += ' (%s)' % person.currentRole
+                    n += f' ({person.currentRole})'
                 nl.append(n)
             return joiner.join(nl)
+
         s = 'Movie\n=====\nTitle: %s\n' % self.get('long imdb canonical title', '')
         genres = self.get('genres')
         if genres:
@@ -326,10 +322,10 @@ class Movie(_Container):
             s += 'Language: %s.\n' % ', '.join(lang)
         rating = self.get('rating')
         if rating:
-            s += 'Rating: %s' % rating
+            s += f'Rating: {rating}'
             nr_votes = self.get('votes')
             if nr_votes:
-                s += ' (%s votes)' % nr_votes
+                s += f' ({nr_votes} votes)'
             s += '.\n'
         plot = self.get('plot')
         if not plot:
@@ -341,5 +337,5 @@ class Movie(_Container):
             i = plot.find('::')
             if i != -1:
                 plot = plot[:i]
-            s += 'Plot: %s' % plot
+            s += f'Plot: {plot}'
         return s

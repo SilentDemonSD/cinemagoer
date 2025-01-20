@@ -106,10 +106,7 @@ def canonicalName(name):
         name = joiner % (sname[1], sname[0])
     elif snl > 2:
         lsname = [x.lower() for x in sname]
-        if snl == 3:
-            _indexes = (0, snl - 2)
-        else:
-            _indexes = (0, snl - 2, snl - 3)
+        _indexes = (0, snl - 2) if snl == 3 else (0, snl - 2, snl - 3)
         # Check for common surname prefixes at the beginning and near the end.
         for index in _indexes:
             if lsname[index] not in _sname_suffixes:
@@ -137,10 +134,9 @@ def canonicalName(name):
 
 def normalizeName(name):
     """Return a name in the normal "Name Surname" format."""
-    joiner = '%s %s'
     sname = name.split(', ')
     if len(sname) == 2:
-        name = joiner % (sname[1], sname[0])
+        name = f'{sname[1]} {sname[0]}'
     return name
 
 
@@ -156,7 +152,6 @@ def analyze_name(name, canonical=None):
     """
     original_n = name
     name = name.split(' aka ')[0].strip()
-    res = {}
     imdbIndex = ''
     opi = name.rfind('(')
     cpi = name.rfind(')')
@@ -169,13 +164,10 @@ def analyze_name(name, canonical=None):
             # XXX: for the birth and death dates case like " (1926-2004)"
             name = re_parentheses.sub('', name).strip()
     if not name:
-        raise IMDbParserError('invalid name: "%s"' % original_n)
+        raise IMDbParserError(f'invalid name: "{original_n}"')
     if canonical is not None:
-        if canonical:
-            name = canonicalName(name)
-        else:
-            name = normalizeName(name)
-    res['name'] = name
+        name = canonicalName(name) if canonical else normalizeName(name)
+    res = {'name': name}
     if imdbIndex:
         res['imdbIndex'] = imdbIndex
     return res
@@ -192,13 +184,9 @@ def build_name(name_dict, canonical=None):
     if not name:
         return ''
     if canonical is not None:
-        if canonical:
-            name = canonicalName(name)
-        else:
-            name = normalizeName(name)
-    imdbIndex = name_dict.get('imdbIndex')
-    if imdbIndex:
-        name += ' (%s)' % imdbIndex
+        name = canonicalName(name) if canonical else normalizeName(name)
+    if imdbIndex := name_dict.get('imdbIndex'):
+        name += f' ({imdbIndex})'
     return name
 
 
@@ -223,10 +211,7 @@ def canonicalTitle(title, lang=None, imdbIndex=None):
         pass
     _format = '%s%s, %s'
     ltitle = title.lower()
-    if imdbIndex:
-        imdbIndex = ' (%s)' % imdbIndex
-    else:
-        imdbIndex = ''
+    imdbIndex = f' ({imdbIndex})' if imdbIndex else ''
     spArticles = linguistics.spArticlesForLang(lang)
     for article in spArticles[isUnicode]:
         if ltitle.startswith(article):
@@ -248,12 +233,9 @@ def normalizeTitle(title, lang=None):
     stitle = title.split(', ')
     articlesDicts = linguistics.articlesDictsForLang(lang)
     if len(stitle) > 1 and stitle[-1].lower() in articlesDicts[isUnicode]:
-        sep = ' '
-        if stitle[-1][-1] in ("'", '-'):
-            sep = ''
-        _format = '%s%s%s'
+        sep = '' if stitle[-1][-1] in ("'", '-') else ' '
         _joiner = ', '
-        title = _format % (stitle[-1], sep, _joiner.join(stitle[:-1]))
+        title = f'{stitle[-1]}{sep}{_joiner.join(stitle[:-1])}'
     return title
 
 
@@ -275,13 +257,11 @@ def _split_series_episode(title):
         episode_or_year = title[begin_eps:].strip()
         if episode_or_year[:12] == '{SUSPENDED}}':
             return '', ''
-    # XXX: works only with tv series; it's still unclear whether
-    #      IMDb will support episodes for tv mini series and tv movies...
-    elif title[0:1] == '"':
+    elif title[:1] == '"':
         second_quot = title[1:].find('"') + 2
         if second_quot != 1:    # a second " was found.
             episode_or_year = title[second_quot:].lstrip()
-            first_char = episode_or_year[0:1]
+            first_char = episode_or_year[:1]
             if not first_char:
                 return '', ''
             if first_char != '(':
